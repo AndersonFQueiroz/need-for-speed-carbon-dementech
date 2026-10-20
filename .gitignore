@@ -1,0 +1,26 @@
+# Build
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+*.idsig
+
+# Motor (baixado por tools/fetch_engine.sh) e assets de shader do upstream
+app/src/main/jniLibs/
+app/src/main/assets/shaders/
+app/src/main/assets/DRIVER-NOTICES.txt
+
+# Chave de assinatura (nunca versionar)
+*.jks
+*.keystore
+keystore.properties
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.log
+__pycache__/
+*.pyc
+.idea/
+.vscode/

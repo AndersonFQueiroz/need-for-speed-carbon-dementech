@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Tema do launcher Dementech. O jogo (GameActivity) usa o tema da
+         plataforma, entao nao e afetado por este. -->
+    <style name="Theme.Dementech" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/dementech_accent</item>
+        <item name="colorOnPrimary">@color/dementech_black</item>
+        <item name="colorSecondary">@color/dementech_chrome</item>
+        <item name="colorSurface">@color/dementech_surface</item>
+        <item name="colorSurfaceVariant">@color/dementech_card</item>
+        <item name="colorOnSurface">@color/dementech_chrome</item>
+        <item name="colorOnSurfaceVariant">@color/dementech_chrome_dim</item>
+        <item name="colorOutline">@color/dementech_outline</item>
+        <item name="android:colorBackground">@color/dementech_black</item>
+        <item name="android:statusBarColor">@color/dementech_black</item>
+        <item name="android:navigationBarColor">@color/dementech_black</item>
+        <item name="android:windowBackground">@color/dementech_black</item>
+    </style>
+
+    <style name="Widget.Dementech.Card" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/dementech_card</item>
+        <item name="cardCornerRadius">18dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">@color/dementech_outline</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Text.Dementech.Title" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textColor">@color/dementech_chrome</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+
+    <style name="Text.Dementech.Label" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/dementech_chrome_dim</item>
+    </style>
+</resources>

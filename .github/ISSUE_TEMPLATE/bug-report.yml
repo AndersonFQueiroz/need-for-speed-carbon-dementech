@@ -1,0 +1,62 @@
+name: Bug report (congelamento / gameplay)
+description: Relate um problema do launcher ou do port — principalmente congelamento
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado pelo relato. Se o problema é **congelamento da imagem**, a
+        aba **Diagnóstico** do app já dá os números: copie o texto dela para
+        o campo "Diagnóstico" abaixo.
+
+  - type: input
+    id: device
+    attributes:
+      label: Aparelho
+      placeholder: "Samsung SM-G781B (Exynos 1280, Adreno 650), Android 13"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Versão do launcher
+      placeholder: "0.1.0-alpha.1"
+    validations:
+      required: true
+
+  - type: input
+    id: driver
+    attributes:
+      label: Driver Vulkan em uso
+      placeholder: "Do sistema / WN-Turnip-1.19-b Axxx"
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnóstico (saída da aba Diagnóstico)
+      description: "Quadros apresentados, fps de apresentação, quadros descartados, tamanho do log."
+      render: text
+
+  - type: textarea
+    id: what
+    attributes:
+      label: O que aconteceu
+      description: "Quanto tempo até travar, o que o contador de FPS fazia, o áudio, se sair e voltar resolve."
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuração do jogo
+      description: "Renderizador, resolução, fps alvo, vsync, compilação de shaders, perfil usado."
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Verificações
+      options:
+        - label: A economia de energia do aparelho estava desligada durante o teste
+        - label: Reproduzi com o driver do sistema (sem driver importado)
+        - label: Anexo o log (carbon.log) em um gist ou issue

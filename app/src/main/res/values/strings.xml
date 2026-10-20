@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings do launcher Dementech (pt-BR). O texto do jogo em si continua
+     vindo dos arquivos do port (LANGUAGES_* / GLOBALMEMORYFILE). -->
+<resources>
+    <string name="app_name">Dementech · NFS Carbon</string>
+    <string name="brand_tagline">NFS Carbon 360 · port Android</string>
+    <string name="brand_developed_by">Desenvolvido por Dementech</string>
+
+    <string name="play">JOGAR</string>
+    <string name="home_status_game">Cópia do jogo</string>
+    <string name="home_status_driver">Driver Vulkan</string>
+    <string name="home_status_shaders">Shaders</string>
+    <string name="home_status_save">Save</string>
+
+    <string name="section_settings">Configurações do jogo</string>
+    <string name="section_files">Arquivos do jogo</string>
+    <string name="section_diagnostics">Diagnóstico</string>
+    <string name="section_about">Sobre</string>
+
+    <string name="diag_freeze_watchdog">Vigia de congelamento</string>
+    <string name="diag_freeze_watchdog_desc">Detecta a imagem travada e oferece recuperar a renderização</string>
+    <string name="diag_presets">Perfis de desempenho</string>
+    <string name="diag_presets_desc">Ajustes que reduzem travadas</string>
+    <string name="diag_logs">Registros</string>
+    <string name="diag_logs_desc">Analisar o log do motor e abrir issue</string>
+    <string name="diag_engine">Motor e build</string>
+    <string name="diag_engine_desc">Versão, bibliotecas nativas,_checksums</string>
+
+    <string name="save_editor_soon">Editor de save</string>
+    <string name="save_editor_soon_desc">Planejado para a v0.3 — ver doc/ideias</string>
+
+    <string name="about_credits">Créditos</string>
+    <string name="about_credits_desc">Port original, ReXGlue, SDL3 e colaboradores</string>
+    <string name="about_license">Licenças</string>
+    <string name="about_license_desc">MIT no código Dementech · GPL-3.0 no port original</string>
+    <string name="about_source">Código-fonte</string>
+    <string name="about_source_desc">github.com/AndersonFQueiroz/need-for-speed-carbon-dementech</string>
+</resources>

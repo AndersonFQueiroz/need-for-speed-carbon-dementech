@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Paleta Dementech: grafite profundo + cromo (a marca e monocroma, prata sobre
+  preto) + um unico acento eletrico para acoes interativas.
+-->
+<resources>
+    <color name="dementech_black">#FF07070A</color>
+    <color name="dementech_surface">#FF101017</color>
+    <color name="dementech_surface_alt">#FF17171F</color>
+    <color name="dementech_card">#FF1C1C26</color>
+    <color name="dementech_outline">#FF2C2C39</color>
+    <color name="dementech_chrome">#FFC9CFDD</color>
+    <color name="dementech_chrome_dim">#FF8A92A3</color>
+    <color name="dementech_accent">#FF5FD3F3</color>
+    <color name="dementech_accent_dim">#FF2E7C93</color>
+    <color name="dementech_danger">#FFE46A6A</color>
+    <color name="dementech_ok">#FF7BD88F</color>
+    <color name="dementech_warning">#FFE5C07B</color>
+</resources>
