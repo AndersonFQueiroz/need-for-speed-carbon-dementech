@@ -56,6 +56,7 @@ public final class MainActivity extends Activity {
     private TextView play, importButton;
     private boolean busy;
     private LinearLayout checks, optionsList, diagnosticsList, creditsList;
+    private DiagnosticsPanel diagnosticsPanel;
     private TextView accessButton;
     private TextView tabGame, tabDiagnostics, tabCredits;
     private LinearLayout tabContent;
@@ -280,9 +281,8 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams freezeParams = new LinearLayout.LayoutParams(-1, -2);
         freezeParams.topMargin = Ui.dp(this, 8);
         freezeCard.setLayoutParams(freezeParams);
-        final TextView freezeText = Ui.label(this, "Lendo o log do motor…", 12, Ui.CHROME);
-        freezeText.setLineSpacing(0, 1.25f);
-        freezeCard.addView(freezeText);
+        diagnosticsPanel = new DiagnosticsPanel(this);
+        freezeCard.addView(diagnosticsPanel, Ui.matchWrap());
         LinearLayout freezeActions = new LinearLayout(this);
         LinearLayout.LayoutParams freezeActionParams = new LinearLayout.LayoutParams(-1, Ui.dp(this, 44));
         freezeActionParams.topMargin = Ui.dp(this, 12);
@@ -293,7 +293,6 @@ public final class MainActivity extends Activity {
         recoverParams.leftMargin = Ui.dp(this, 8);
         freezeActions.addView(Ui.ghostButton(this, "Reiniciar renderização", ignored -> recoverRendering()),
                 recoverParams);
-        freezeCard.setTag(freezeText);
 
         diagnosticsList.addView(Ui.divider(this));
         diagnosticsList.addView(Ui.section(this, "Perfis de desempenho"));
@@ -305,11 +304,11 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams presetParams = new LinearLayout.LayoutParams(-1, Ui.dp(this, 46));
         presetParams.topMargin = Ui.dp(this, 8);
         diagnosticsList.addView(presets, presetParams);
-        presets.addView(Ui.ghostButton(this, "Estável (30 fps)", ignored -> applyPreset(Preset.STABLE)),
+        presets.addView(Ui.ghostButton(this, "Estável (60 fps)", ignored -> applyPreset(Preset.STABLE)),
                 new LinearLayout.LayoutParams(0, -1, 1));
         LinearLayout.LayoutParams preset2 = new LinearLayout.LayoutParams(0, -1, 1);
         preset2.leftMargin = Ui.dp(this, 8);
-        presets.addView(Ui.ghostButton(this, "Modo gravação", ignored -> applyPreset(Preset.RECORDING)),
+        presets.addView(Ui.ghostButton(this, "Leve (30 fps)", ignored -> applyPreset(Preset.RECORDING)),
                 preset2);
         LinearLayout.LayoutParams preset3 = new LinearLayout.LayoutParams(0, -1, 1);
         preset3.leftMargin = Ui.dp(this, 8);
@@ -325,18 +324,8 @@ public final class MainActivity extends Activity {
     }
 
     private void refreshDiagnostics() {
-        if (diagnosticsList == null) return;
-        View card = null;
-        for (int i = 0; i < diagnosticsList.getChildCount(); i++) {
-            View child = diagnosticsList.getChildAt(i);
-            if (child.getTag() instanceof TextView) { card = child; break; }
-        }
-        if (card == null) return;
-        TextView target = (TextView) card.getTag();
-        File log = FreezeReport.logFile(getExternalFilesDir(null));
-        FreezeReport.Snapshot snapshot = FreezeReport.read(log);
-        target.setText(FreezeReport.describe(snapshot));
-        target.setTextColor(snapshot.suspect() ? Ui.WARNING : Ui.CHROME);
+        if (diagnosticsPanel == null) return;
+        diagnosticsPanel.refresh();
     }
 
     /** Reinicia a renderizacao: fecha o jogo e volta a rodar. */
@@ -361,18 +350,20 @@ public final class MainActivity extends Activity {
     private void applyPreset(Preset preset) {
         switch (preset) {
             case STABLE:
-                // Medido no aparelho: a 30 fps o motor entrega 600/600 swaps por 20 s
-                // (nenhum quadro acima de 36 ms); a 60 fps o ritmo quebra (ate 50
-                // hitches por janela). Ver doc/02-congelamento.md.
+                // 60 fps (escolha do dono). Medido: a 30 fps o ritmo fica perfeito
+                // (600/600 swaps por 20 s), mas o congelamento aparece depois de um
+                // tempo de jogo de qualquer jeito — a vigia e o que resolve.
                 GameOptions.set(this, "resolution", "1280x720");
-                GameOptions.set(this, "fps", "30");
+                GameOptions.set(this, "fps", "60");
                 GameOptions.set(this, "single_pass", "true");
                 GameOptions.set(this, "vsync", "true");
                 GameOptions.set(this, "async", "true");
                 GameOptions.set(this, "workers", "2");
                 break;
             case RECORDING:
-                // A gravacao de tela evita o congelamento no port original (issue #137 do upstream).
+                // 30 fps: ritmo medido como perfeito (600/600 swaps por 20 s, nenhum
+                // quadro acima de 36 ms). A gravacao de tela tambem evita o
+                // congelamento no port original (issue #137 do upstream).
                 GameOptions.set(this, "resolution", "1280x720");
                 GameOptions.set(this, "fps", "30");
                 GameOptions.set(this, "single_pass", "true");

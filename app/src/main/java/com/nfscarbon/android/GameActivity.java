@@ -66,6 +66,20 @@ public final class GameActivity extends SDLActivity
     private Sensor gravity;
     private TextView fpsLabel;
     private final Handler frameHandler = new Handler(Looper.getMainLooper());
+    // Vigia de congelamento (Dementech): observa o contador de apresentacao do motor
+    // e avisa quando a imagem para de avancar.
+    private final Handler watchdogHandler = new Handler(Looper.getMainLooper());
+    private long lastPresented = -1;
+    private long lastProgressAt;
+    private long lastStallSeconds;
+    private long lastStallAt;
+    private final Runnable watchdogTick = new Runnable() {
+        @Override public void run() {
+            if (isFinishing()) return;
+            checkPresentation();
+            watchdogHandler.postDelayed(this, 5000);
+        }
+    };
     private final Runnable updateFrames = new Runnable() {
         @Override public void run() {
             if (fpsLabel == null || isFinishing()) return;
@@ -186,6 +200,10 @@ public final class GameActivity extends SDLActivity
         }
         updateTiltListener();
         applyStretch(controls.stretch);
+        lastPresented = -1;
+        lastProgressAt = System.currentTimeMillis();
+        watchdogHandler.removeCallbacks(watchdogTick);
+        watchdogHandler.postDelayed(watchdogTick, 5000);
     }
 
     private static void applyStretch(boolean stretch) {
@@ -199,6 +217,7 @@ public final class GameActivity extends SDLActivity
     @Override
     protected void onPause() {
         frameHandler.removeCallbacks(updateFrames);
+        watchdogHandler.removeCallbacks(watchdogTick);
         if (inputManager != null) {
             inputManager.unregisterInputDeviceListener(this);
         }
@@ -343,6 +362,77 @@ public final class GameActivity extends SDLActivity
         toolbar.setVisibility(editing ? View.VISIBLE : View.GONE);
     }
 
+    // ---- Diagnostico e vigia de congelamento (Dementech) --------------------------------------------
+
+    /** Abre o painel de diagnostico por cima do jogo (botao "Diagnostico" do editor de controles). */
+    private void showDiagnostics() {
+        DiagnosticsPanel panel = new DiagnosticsPanel(this);
+        panel.refresh();
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(this)
+                .setTitle("Dementech · diagnóstico")
+                .setView(panel)
+                .setPositiveButton("Atualizar", (d, which) -> showDiagnostics())
+                .setNeutralButton("Reiniciar renderização", (d, which) -> recoverRendering())
+                .setNegativeButton("Fechar", null)
+                .create();
+        dialog.setOnShowListener(ignored -> panel.refresh());
+        dialog.show();
+    }
+
+    /**
+     * Recria a Activity: a surface Vulkan e o contexto SDL sao refeitos, que e
+     * o que destrava a imagem quando ela para (sair do app e voltar).
+     */
+    private void recoverRendering() {
+        try {
+            recreate();
+        } catch (RuntimeException error) {
+            Log.w(TAG, "recreate", error);
+        }
+    }
+
+    /**
+     * Le o contador de quadros apresentados pelo motor. Se o log continua sendo
+     * escrito (motor vivo) mas o contador nao avanca, a imagem esta travada.
+     */
+    private void checkPresentation() {
+        try {
+            java.io.File log = DiagnosticsPanel.logFile(this);
+            if (log == null || !log.isFile()) return;
+            FreezeReport.Snapshot snapshot = FreezeReport.read(log, 96 * 1024);
+            if (!snapshot.readable || snapshot.presented <= 0) return;
+            long now = System.currentTimeMillis();
+            if (lastPresented < 0) {
+                lastPresented = snapshot.presented;
+                lastProgressAt = now;
+                return;
+            }
+            if (snapshot.presented != lastPresented) {
+                lastPresented = snapshot.presented;
+                lastProgressAt = now;
+                return;
+            }
+            long idle = (now - lastProgressAt) / 1000;
+            long quiet = (now - log.lastModified()) / 1000;
+            // O motor parado (jogo pausado) nao e travamento: so conta se o log
+            // continua sendo escrito.
+            // Nada aparece na tela durante o jogo: a travada fica registrada e
+            // aparece na aba de diagnostico (configuracoes do touch control).
+            if (idle >= 20 && quiet <= 15) recordStall(idle);
+        } catch (RuntimeException error) {
+            Log.w(TAG, "watchdog", error);
+        }
+    }
+
+    /** Registra a travada (sem mostrar nada na tela) para o diagnostico. */
+    private void recordStall(long idleSeconds) {
+        if (lastStallSeconds == idleSeconds) return;
+        lastStallSeconds = idleSeconds;
+        lastStallAt = System.currentTimeMillis();
+        DiagnosticsPanel.recordStall(this, idleSeconds, lastStallAt);
+        Log.w(TAG, "apresentacao parada ha " + idleSeconds + " s");
+    }
+
     private LinearLayout buildToolbar() {
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.VERTICAL);
@@ -355,7 +445,7 @@ public final class GameActivity extends SDLActivity
         bar.setBackground(bg);
 
         TextView hint = new TextView(this);
-        hint.setText("Toca un control para elegirlo · arrástralo para moverlo · pellizca para cambiar su tamaño");
+        hint.setText("Toque um controle para escolher · arraste para mover · pince para mudar o tamanho");
         hint.setTextColor(0xCCFFFFFF);
         hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         hint.setGravity(Gravity.CENTER);
@@ -363,12 +453,12 @@ public final class GameActivity extends SDLActivity
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.addView(toolButton("Tamaño −", v -> controls.resizeSelected(1f / 1.12f)));
-        row.addView(toolButton("Tamaño +", v -> controls.resizeSelected(1.12f)));
+        row.addView(toolButton("Tamanho −", v -> controls.resizeSelected(1f / 1.12f)));
+        row.addView(toolButton("Tamanho +", v -> controls.resizeSelected(1.12f)));
         row.addView(toolButton("Mostrar / ocultar", v -> controls.toggleSelectedVisible()));
         row.addView(toolButton("Ajustes", v -> showSettings()));
-        row.addView(toolButton("Restablecer", v -> confirmReset()));
-        Button done = toolButton("Listo", v -> controls.setEditing(false));
+        row.addView(toolButton("Restaurar", v -> confirmReset()));
+        Button done = toolButton("Pronto", v -> controls.setEditing(false));
         ((GradientDrawable) done.getBackground()).setColor(0xFFE07B00);
         row.addView(done);
         bar.addView(row);
@@ -410,29 +500,39 @@ public final class GameActivity extends SDLActivity
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(20), dp(8), dp(20), dp(8));
 
-        panel.addView(toggle("Imagen estirada a toda la pantalla", controls.stretch, on -> {
+        panel.addView(toggle("Imagem esticada em toda a tela", controls.stretch, on -> {
             controls.stretch = on;
             applyStretch(on);
         }));
-        panel.addView(toggle("Vibrar al pulsar", controls.haptics, on -> controls.haptics = on));
-        panel.addView(toggle("Ocultar los controles al usar un mando", controls.hideWithGamepad,
+        panel.addView(toggle("Vibrar ao tocar", controls.haptics, on -> controls.haptics = on));
+        panel.addView(toggle("Ocultar os controles ao usar um controle", controls.hideWithGamepad,
                 on -> controls.hideWithGamepad = on));
-        panel.addView(toggle("Dirección inclinando el teléfono", controls.tiltSteering, on -> {
+        panel.addView(toggle("Direção inclinando o aparelho", controls.tiltSteering, on -> {
             controls.tiltSteering = on;
             updateTiltListener();
         }));
-        panel.addView(slider("Sensibilidad de la inclinación", 50, 250,
+        panel.addView(slider("Sensibilidade da inclinação", 50, 250,
                 Math.round(controls.tiltSensitivity * 100), v -> controls.tiltSensitivity = v / 100f));
-        panel.addView(slider("Opacidad de los controles", 15, 100,
+        panel.addView(slider("Opacidade dos controles", 15, 100,
                 Math.round(controls.opacity * 100), v -> {
                     controls.opacity = v / 100f;
                     controls.invalidate();
                 }));
 
+        android.widget.Button diagnostics = new android.widget.Button(this);
+        diagnostics.setText("Diagnóstico do congelamento");
+        diagnostics.setAllCaps(false);
+        diagnostics.setOnClickListener(v -> {
+            try {
+                showDiagnostics();
+            } catch (RuntimeException ignored) { }
+        });
+        panel.addView(diagnostics);
+
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Ajustes de los controles")
+                .setTitle("Ajustes dos controles")
                 .setView(panel)
-                .setPositiveButton("Cerrar", (d, w) -> controls.save())
+                .setPositiveButton("Fechar", (d, w) -> controls.save())
                 .setOnDismissListener(d -> controls.save())
                 .show();
     }

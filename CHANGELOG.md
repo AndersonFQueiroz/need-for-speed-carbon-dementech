@@ -12,10 +12,21 @@ Versões seguem [SemVer](https://semver.org/lang/pt-BR/).
 - `tools/watch_freeze.py`: vigia de congelamento em tempo real por adb (para
   uso opcional em PC).
 
+### Adicionado (continuação)
+- **Diagnóstico dentro do jogo**: botão "Diagnóstico do congelamento" nos
+  ajustes do touch control (o gear do dpad virtual abre o editor, e "Ajustes"
+  abre as configurações dos controles). Abre o mesmo painel do launcher, por
+  cima do jogo, com "Reiniciar renderização".
+- **Vigia de congelamento silenciosa**: durante a partida, um timer de 5 s lê o
+  contador de apresentação do log; se o motor para de entregar quadro, a
+  travada é registrada (hora e duração) e aparece na próxima leitura.
+  **Nada é desenhado sobre o jogo.**
+
 ### Mudado
-- Perfil **Estável** passa de 60 para **30 fps**: medido no aparelho, a 30 fps
-  o motor entrega 600/600 swaps por 20 s (nenhum quadro acima de 36 ms) e a
-  60 fps o ritmo quebra. Ver `doc/02-congelamento.md`.
+- Perfis: **Estável (60 fps)** (escolha do dono) e **Leve (30 fps)** — a 30 fps
+  o ritmo medido fica perfeito (600/600 swaps por 20 s), mas o congelamento
+  aparece depois de um tempo de jogo nos dois, então o que resolve é a vigia.
+- Textos do touch control e do editor de controles em português do Brasil.
 
 ## [0.1.0-alpha.1] — 2026-10-20
 

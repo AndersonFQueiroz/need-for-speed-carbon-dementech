@@ -192,20 +192,29 @@ na linha de comando, e por isso **não exigem recompilar nada**:
 
 ## 8. Mitigações já no launcher (alpha.1)
 
-- **Aba Diagnóstico**: mostra o estado real da apresentação (quadros
-  apresentados, fps, descartados, tamanho do log) e diz se a imagem está
+- **Aba Diagnóstico** (launcher): mostra o estado real da apresentação (quadros
+  apresentados, fps, descartados, tamanho do log), o **ritmo real** (quadros
+  entregues por segundo, quadros lentos, pior quadro) e diz se a imagem está
   travada agora.
+- **Diagnóstico dentro do jogo**: botão **"Diagnóstico do congelamento"** nos
+  *ajustes do touch control* (o gear do dpad virtual → editor → "Ajustes").
+  Abre o mesmo painel por cima do jogo, com **Reiniciar renderização**.
+  **Nada é desenhado sobre o jogo durante a partida** — nem botão, nem faixa.
+- **Vigia silenciosa**: durante o jogo, um timer de 5 s lê o contador de
+  apresentação do log. Se o log continua sendo escrito (motor vivo) mas o
+  contador não avança por 20 s, a travada é **registrada** (com hora e
+  duração) e aparece na próxima leitura do diagnóstico. Sem poluir a tela.
 - **Botão "Reiniciar renderização"**: recria a Activity do jogo, o que recria a
   surface Vulkan — é exatamente o "sair e voltar" que resolve.
-- **Perfis de desempenho** que aplicam combinações conservativeas
-  (720p / 30 fps / vsync / compilação de shaders em segundo plano).
-- **Leitura de ritmo no app**: a aba Diagnóstico mostra os fps realmente
-  entregues e quantos quadros passaram de 60 ms na última janela.
+- **Perfis de desempenho**: *Estável (60 fps)*, *Leve (30 fps)* e *Qualidade*.
+  O dono escolheu 60 fps por padrão: a 30 fps o ritmo fica perfeito, mas o
+  congelamento aparece depois de um tempo de jogo nos dois, então o que
+  resolve é a vigia, não o fps.
 
 ## 9. O que falta (alpha.2 em diante)
 
-1. **Watchdog**: detectar a parada de apresentação dentro do app e recuperar
-   sozinho (hoje exige o toque do usuário).
+1. **Recuperação automática**: a vigia já detecta e registra a travada; falta
+   resolver sozinho (hoje exige o toque do usuário em "Reiniciar renderização").
 2. **Aplicar `log_level=warn` por padrão** (medir o ganho de I/O).
 3. **Matriz de teste A/B** automatizada: `tools/bench_sessions.py`, rodando
    N sessões por configuração e comparando o `apres. fps`.

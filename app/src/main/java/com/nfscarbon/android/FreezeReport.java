@@ -67,6 +67,11 @@ final class FreezeReport {
 
     /** Le a cauda do log (no maximo 512 KB) e extrai os indicadores. */
     static Snapshot read(File log) {
+        return read(log, 512 * 1024);
+    }
+
+    /** Le apenas os ultimos bytes do log (para a leitura periodica do watchdog). */
+    static Snapshot read(File log, int tailBytes) {
         Snapshot snapshot = new Snapshot();
         if (log == null || !log.isFile()) return snapshot;
         snapshot.readable = true;
@@ -75,7 +80,7 @@ final class FreezeReport {
         String tail;
         try (RandomAccessFile raf = new RandomAccessFile(log, "r")) {
             long size = raf.length();
-            int wanted = (int) Math.min(size, 512 * 1024);
+            int wanted = (int) Math.min(size, tailBytes);
             raf.seek(size - wanted);
             byte[] buffer = new byte[wanted];
             raf.readFully(buffer);

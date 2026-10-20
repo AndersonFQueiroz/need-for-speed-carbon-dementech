@@ -111,7 +111,7 @@ cada hipótese com experimento (ver [`doc/08-roadmap.md`](doc/08-roadmap.md)).
       um veredito de "imagem travada"
 - [x] Botão **Reiniciar renderização** (recria a surface Vulkan — o mesmo
       truque de sair e voltar ao app que resolve o congelamento)
-- [x] **Perfis de desempenho**: Estável (30 fps), Modo gravação, Qualidade
+- [x] **Perfis de desempenho**: Estável (60 fps), Leve (30 fps), Qualidade
 - [x] Diagnóstico mostra o **ritmo real** (quadros entregues por segundo,
       quadros lentos e pior quadro da última janela)
 - [x] Diagnóstico de congelamento reproduzível fora do app:
