@@ -86,8 +86,8 @@ public final class GameActivity extends SDLActivity
             try {
                 long frameUs = nativeFrameTimeUs();
                 fpsLabel.setText(frameUs > 0 ? String.format(java.util.Locale.ROOT,
-                        "%.0f FPS · %.1f ms", 1000000.0 / frameUs, frameUs / 1000.0) : "FPS · cargando…");
-            } catch (UnsatisfiedLinkError ignored) { fpsLabel.setText("FPS · cargando…"); }
+                        "%.0f FPS · %.1f ms", 1000000.0 / frameUs, frameUs / 1000.0) : "FPS · carregando…");
+            } catch (UnsatisfiedLinkError ignored) { fpsLabel.setText("FPS · carregando…"); }
             frameHandler.postDelayed(this, 1000);
         }
     };
@@ -364,6 +364,29 @@ public final class GameActivity extends SDLActivity
 
     // ---- Diagnostico e vigia de congelamento (Dementech) --------------------------------------------
 
+    /**
+     * Configuracao do jogo por cima do jogo: todas as opcoes do motor, no estilo
+     * do menu do Carbon, com "aplicar agora" (reinicia a sessao com as novas
+     * opcoes; o save fica intacto).
+     */
+    private void showGameOptions() {
+        ConfigPanel panel = new ConfigPanel(this, () -> {
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("Aplicar agora?")
+                    .setMessage("A sessão do jogo será reiniciada com as novas opções. "
+                            + "O save é preservado.")
+                    .setPositiveButton("Aplicar", (d, w) -> recoverRendering())
+                    .setNegativeButton("Cancelar", null)
+                    .show();
+        });
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(this)
+                .setTitle("Configurações do jogo")
+                .setView(panel)
+                .setPositiveButton("Fechar", null)
+                .create();
+        dialog.show();
+    }
+
     /** Abre o painel de diagnostico por cima do jogo (botao "Diagnostico" do editor de controles). */
     private void showDiagnostics() {
         DiagnosticsPanel panel = new DiagnosticsPanel(this);
@@ -488,9 +511,9 @@ public final class GameActivity extends SDLActivity
 
     private void confirmReset() {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Restablecer controles")
-                .setMessage("¿Volver a la posición y el tamaño originales de todos los controles?")
-                .setPositiveButton("Restablecer", (d, w) -> controls.resetLayout())
+                .setTitle("Restaurar controles")
+                .setMessage("Voltar todos os controles à posição e ao tamanho originais?")
+                .setPositiveButton("Restaurar", (d, w) -> controls.resetLayout())
                 .setNegativeButton("Cancelar", null)
                 .show();
     }
@@ -519,6 +542,18 @@ public final class GameActivity extends SDLActivity
                     controls.invalidate();
                 }));
 
+        // Os dois atalhos ficam no TOPO do painel: em paisagem o dialogo e
+        // baixo e o fim do painel cai fora da tela.
+        android.widget.Button options = new android.widget.Button(this);
+        options.setText("Configurações do jogo");
+        options.setAllCaps(false);
+        options.setOnClickListener(v -> {
+            try {
+                showGameOptions();
+            } catch (RuntimeException ignored) { }
+        });
+        panel.addView(options);
+
         android.widget.Button diagnostics = new android.widget.Button(this);
         diagnostics.setText("Diagnóstico do congelamento");
         diagnostics.setAllCaps(false);
@@ -528,10 +563,14 @@ public final class GameActivity extends SDLActivity
             } catch (RuntimeException ignored) { }
         });
         panel.addView(diagnostics);
+        panel.addView(new android.view.View(this));
 
+        // Painel rolavel: as opcoes ficam acessiveis em qualquer altura de tela.
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.addView(panel);
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle("Ajustes dos controles")
-                .setView(panel)
+                .setView(scroll)
                 .setPositiveButton("Fechar", (d, w) -> controls.save())
                 .setOnDismissListener(d -> controls.save())
                 .show();
