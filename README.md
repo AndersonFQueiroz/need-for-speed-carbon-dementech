@@ -81,6 +81,20 @@ continua trabalhando. Em oito sessões de jogo analisadas (40 MB de log):
   830) e no do *Underground 2* (issue #328, Mali) — ou seja, é da família de
   ports, não do aparelho de um usuário.
 
+**E o achado que fecha o caso:** o motor loga a distribuição do tempo entre
+entregas de quadro. Comparando a mesma máquina:
+
+| fps alvo | swaps por 20 s | quadros lentos (>60 ms) | pior quadro |
+|---|---|---|---|
+| **30** | **600 · 600 · 600** | **0 · 0 · 0** | **35 ms** |
+| 60 | 701 · 1057 · 1170 | 1 · 2 · 5 | 66 · 115 · 266 ms |
+| 60 (sessão travada) | 239 · 259 · 187 | **50 · 50 · 50** | **337 ms** |
+
+Ou seja: **pedir 60 fps satura a fila e quebra o ritmo**; a 30 fps o jogo fica
+perfeito. O congelamento é a ponta desse mesmo efeito — e é a mesma variável
+que a [issue #204 do port do Most Wanted](https://github.com/codepdbh/nfsmw-android/issues/204)
+aponta ("congela quando configuro os FPS a mais de 60").
+
 Daí a aposta deste projeto: **medir antes de mexer**. A aba de diagnóstico
 transforma o problema em algo mensurável dentro do app, e o roadmap ataca
 cada hipótese com experimento (ver [`doc/08-roadmap.md`](doc/08-roadmap.md)).
@@ -97,7 +111,9 @@ cada hipótese com experimento (ver [`doc/08-roadmap.md`](doc/08-roadmap.md)).
       um veredito de "imagem travada"
 - [x] Botão **Reiniciar renderização** (recria a surface Vulkan — o mesmo
       truque de sair e voltar ao app que resolve o congelamento)
-- [x] **Perfis de desempenho**: Estável 720p, Modo gravação, Qualidade
+- [x] **Perfis de desempenho**: Estável (30 fps), Modo gravação, Qualidade
+- [x] Diagnóstico mostra o **ritmo real** (quadros entregues por segundo,
+      quadros lentos e pior quadro da última janela)
 - [x] Diagnóstico de congelamento reproduzível fora do app:
       [`tools/diagnose_freeze.py`](tools/diagnose_freeze.py)
 - [x] Pipeline de marca: [`tools/make_brand_assets.java`](tools/make_brand_assets.java)

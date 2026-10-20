@@ -34,6 +34,8 @@ GPU = re.compile(r"GPU ([\d.]+) reales")
 DROP = re.compile(r"Presentation to the swapchain image has been dropped", re.I)
 PRESENT = re.compile(r"adquisicion anticipada: (\d+) de (\d+) fotogramas sin espera", re.I)
 RING = re.compile(r"anillo: sin trabajo ([\d.]+) ms")
+SWAPS = re.compile(
+    r"intervalos entre Swaps: (.*?);\s*peor fotograma ([\d.]+) ms")
 RING_BUSY = re.compile(r"anillo: \d+ dibujos, trabajando ([\d.]+) ms")
 LEVEL = re.compile(r"\[(error|warn|warning|critical|fatal)\]", re.I)
 TAG = re.compile(r"\[(tiron|nativo|presentador|xma|io|krnl|core|d3d_marcador|carbon|sh|audio|fs|sys)\]")
@@ -60,6 +62,7 @@ class Report:
     ring_idle: list[float] = field(default_factory=list)
     ring_busy: list[float] = field(default_factory=list)
     dropped: int = 0
+    swaps: list[tuple[datetime, dict, float]] = field(default_factory=list)
     presented: list[tuple[datetime, int]] = field(default_factory=list)
     ts_all: list[datetime] = field(default_factory=list)
     levels: Counter = field(default_factory=Counter)
@@ -78,6 +81,7 @@ class Report:
         self.ring_busy += other.ring_busy
         self.dropped += other.dropped
         self.presented += other.presented
+        self.swaps += other.swaps
         self.ts_all += other.ts_all
         self.levels.update(other.levels)
         self.warns.update(other.warns)
@@ -137,6 +141,18 @@ def analyze(path: str) -> Report:
                 rep.gpu.append(float(gm.group(1)))
             if DROP.search(line):
                 rep.dropped += 1
+            sm = SWAPS.search(line)
+            if sm:
+                buckets = {}
+                for part in sm.group(1).split("|"):
+                    part = part.strip()
+                    match = re.match(r"^(.+?)(?:\s*ms)?\s+(\d+)$", part)
+                    if match:
+                        buckets[match.group(1).strip()] = int(match.group(2))
+                try:
+                    rep.swaps.append((ts, buckets, float(sm.group(2))))
+                except ValueError:
+                    pass
             pm = PRESENT.search(line)
             if pm:
                 rep.presented.append((ts, int(pm.group(2))))
@@ -254,6 +270,19 @@ def render(rep: Report, args) -> str:
         for label, count, fps in buckets[: args.top * 3]:
             bar = "#" * int(min(fps, 60))
             out.append(f"  {label:>8}  {count:>5} quadros  {fps:6.1f} fps  {bar}")
+    out.append("")
+
+    out.append("-- ritmo real (histograma de swaps do motor) -----------------------")
+    if rep.swaps:
+        for ts, buckets, worst in rep.swaps[-args.top:]:
+            total = sum(buckets.values()) or 1
+            bad = sum(n for k, n in buckets.items()
+                      if re.match(r"(>=?1\d\d|[6-9]\d-|[1-9]\d\d-\d+)", k.replace(" ", "")) and n)
+            fast = buckets.get("<15 ms", 0) + buckets.get("15-18", 0) + buckets.get("18-25", 0)
+            out.append(f"  {ts.time()}  quadros={total:<5} piores={worst:8.1f} ms  "
+                       f"lentos(>=60ms)={bad:<4} rapidos(<25ms)={fast}")
+    else:
+        out.append("sem linhas de histograma de swaps")
     out.append("")
 
     out.append("-- apresentacao / anel ---------------------------------------------")

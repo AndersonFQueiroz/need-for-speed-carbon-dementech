@@ -269,7 +269,10 @@ public final class MainActivity extends Activity {
         diagnosticsList.addView(Ui.section(this, "Congelamento"));
         diagnosticsList.addView(Ui.label(this,
                 "O congelamento aparece como imagem parada enquanto o jogo continua rodando: o motor para "
-                        + "de entregar quadros na tela. O log do motor mede isso (veja doc/02-congelamento.md).",
+                        + "de entregar quadros na tela. O log do motor mede isso (veja doc/02-congelamento.md).\n\n"
+                        + "Para ver esta leitura com o jogo aberto: use o botão de RECENTES e volte para o app "
+                        + "(o jogo continua rodando em segundo plano). Se preferir, o botão VOLTAR fecha o jogo "
+                        + "— e sair e voltar é justamente o que destrava a imagem travada.",
                 11, Ui.CHROME_DIM));
 
         LinearLayout freezeCard = Ui.card(this);
@@ -302,7 +305,7 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams presetParams = new LinearLayout.LayoutParams(-1, Ui.dp(this, 46));
         presetParams.topMargin = Ui.dp(this, 8);
         diagnosticsList.addView(presets, presetParams);
-        presets.addView(Ui.ghostButton(this, "Estável 720p", ignored -> applyPreset(Preset.STABLE)),
+        presets.addView(Ui.ghostButton(this, "Estável (30 fps)", ignored -> applyPreset(Preset.STABLE)),
                 new LinearLayout.LayoutParams(0, -1, 1));
         LinearLayout.LayoutParams preset2 = new LinearLayout.LayoutParams(0, -1, 1);
         preset2.leftMargin = Ui.dp(this, 8);
@@ -358,8 +361,11 @@ public final class MainActivity extends Activity {
     private void applyPreset(Preset preset) {
         switch (preset) {
             case STABLE:
+                // Medido no aparelho: a 30 fps o motor entrega 600/600 swaps por 20 s
+                // (nenhum quadro acima de 36 ms); a 60 fps o ritmo quebra (ate 50
+                // hitches por janela). Ver doc/02-congelamento.md.
                 GameOptions.set(this, "resolution", "1280x720");
-                GameOptions.set(this, "fps", "60");
+                GameOptions.set(this, "fps", "30");
                 GameOptions.set(this, "single_pass", "true");
                 GameOptions.set(this, "vsync", "true");
                 GameOptions.set(this, "async", "true");

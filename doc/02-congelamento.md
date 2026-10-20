@@ -93,13 +93,64 @@ Ou seja: **a mesma classe de bug aparece em Adreno 650, 750 e 830, em Mali e em
 PowerVR** → a causa não é um driver específico nem um aparelho. É da camada
 compartilhada: **renderizador + caminho de apresentação (presenter) do ReXGlue**.
 
-## 5. Hipóteses (e como testar cada uma)
+
+## 5. A métrica que fecha: o histograma de swaps
+
+O motor loga, a cada ~20 s, a distribuição do tempo entre as entregas de
+quadro (o "swap" para a tela):
+
+```
+[19:52:36.710] [nativo] C2: intervalos entre Swaps: <15 ms 0 | 15-18 0 | 18-25 0 | 25-30 0 |
+30-36 600 | 36-50 0 | 50-60 0 | 60-75 0 | 75-100 0 | 100-150 0 | >=150 0; peor fotograma 35.4 ms
+```
+
+É a métrica honesta de ritmo: quantos quadros foram entregues e como se
+distribuem. (O `fotograma de X ms` que aparece no log é só uma amostra de
+quadros *notáveis* — por isso ele media ~10 fps mesmo quando o jogo roda
+liso.)
+
+### A/B no mesmo aparelho
+
+| Sessão | fps alvo | swaps por 20 s | quadros lentos (>60 ms) por janela | pior quadro |
+|---|---|---|---|---|
+| 20/10 19:51 (perfil **Modo gravação**) | **30** | **600 · 600 · 600** | **0 · 0 · 0** | **34,9 · 35,0 · 35,4 ms** |
+| 19-20/10 17:58 (perfil 60) | 60 | 701 · 1057 · 1170 · 1198 | 1 · 2 · 5 | 66,9 · 115,9 · 266,4 ms |
+| 19-20/10 08:25 (perfil 60) | 60 | 1074 · 1126 · 1201 · 1151 | 9 · 0 · 0 | 167,1 · 49,6 · 18,6 ms |
+| 19/10 19:39 (**sessão travada**) | 60 | 239 · 259 · 187 · 210 | **50 · 50 · 50 · 51** | 337,1 · 337,5 · 337,8 · 350,7 ms |
+
+### O que isso prova
+
+1. **A 30 fps o ritmo é perfeito**: 600 swaps em 20 s (30,0 fps exatos), nenhum
+   quadro acima de 36 ms, nenhuma troca perdida. O jogo fica *fluido*.
+2. **A 60 fps o ritmo quebra**: o motor tenta 60 (centenas de swaps abaixo de
+   25 ms na mesma janela — ele "descarrega" quadro), o app não acompanha, e a
+   fila satura. O log mostra `trabajos solapados en la GPU 8` nessa fase.
+3. **A sessão travada é a ponta desse mesmo现象**: 187–259 swaps por 20 s
+   (9–13 fps) com **50 quadros lentos em toda janela** e pior quadro travado em
+   ~337 ms, de forma constante. Ou seja: o congelamento é a **fase extrema da
+   fila saturada**, não um evento isolado.
+4. Isso bate com a **issue #204 do port do Most Wanted** ("la imagen se congela
+   cuando configuro los fotogramas por segundo a más de 60") — o mesmo
+   sintoma, a mesma variável.
+
+### Consequência prática (já aplicada no app)
+
+O perfil **Estável** do launcher agora usa **30 fps** (era 60). Os perfis
+"Modo gravação" e "Estável" são, na prática, o mesmo perfil neste aparelho:
+o que resolve não é o nome, é **não pedir 60 fps**.
+
+O que ainda falta testar (H1): 30 fps com `vulkan_async_skip_incomplete_frames`
+desligado, e 30 fps com a surface recriada — porque a sessão de 30 fps ainda
+pode travar em longo prazo, só que muito menos.
+
+## 6. Hipóteses (e como testar cada uma)
 
 | # | Hipótese | Teste | Ferramenta |
 |---|---|---|---|
 | **H1** | O *swapchain*/surface fica desatualizado e as frames são descartadas na apresentação (`Presentation ... dropped as the swapchain or the surface has become outdated`) | Loop de 20 min com `vulkan_async_skip_incomplete_frames=false` e `render_target_path_vulkan` alternativo | `files/args.txt` (injeta `--flag=valor` na próxima sessão) |
-| **H2** | Ritmo alvo alto/vertical sync mal ajustado piora | `fps=30` e `vsync=false` (perfil "Modo gravação" do app) | perfis da aba Diagnóstico |
+| **H2** | Ritmo alvo alto (60 fps) satura a fila e derruba o ritmo | **medido**: 30 fps → 600/600 swaps e 0 lentos; 60 fps → hitches e 50 lentos na sessão travada | perfil Estável (30 fps) do app |
 | **H3** | **Economia de energia do aparelho** limita CPU/GPU e derruba o ritmo | Desligar a economia de energia e repetir a mesma sessão | ajuste do sistema |
+| **H2b** | `vulkan_async_skip_incomplete_frames` descartando quadro válido | A/B com o flag desligado | `files/args.txt` |
 | **H4** | Verbosidade do log (5 MB por sessão, rotação de 20 arquivos) causa stalls de I/O | `log_level=warn` + `log_max_files=3` | cvar do motor |
 | **H5** | Pipeline de shaders / cache | `--vulkan_pipeline_creation_threads=4` e recompilar a biblioteca de shaders | perfil "Qualidade" |
 | **H6** | Surface precisa ser recriada para destravar | "Sair e voltar ao app" (reproduz o que o app já faz no botão **Reiniciar renderização**) | botão do app |
@@ -117,7 +168,7 @@ eliminar**: repetir uma sessão com a economia desligada e comparar o
 > H1 (problema no caminho de apresentação) e explica por que trocar de
 > driver ou mexer na resolução não resolve.
 
-## 6. Cvars do motor relevantes
+## 7. Cvars do motor relevantes
 
 Extraídos do código do renderizador (ReXGlue). O launcher passa esses flags
 na linha de comando, e por isso **não exigem recompilar nada**:
@@ -139,7 +190,7 @@ na linha de comando, e por isso **não exigem recompilar nada**:
 | `host_present_from_non_ui_thread` | `true` | apresentação fora da thread de UI |
 | `vulkan_submit_on_primary_buffer_end` | `true` | submissão no fim do buffer primário |
 
-## 7. Mitigações já no launcher (alpha.1)
+## 8. Mitigações já no launcher (alpha.1)
 
 - **Aba Diagnóstico**: mostra o estado real da apresentação (quadros
   apresentados, fps, descartados, tamanho do log) e diz se a imagem está
@@ -147,9 +198,11 @@ na linha de comando, e por isso **não exigem recompilar nada**:
 - **Botão "Reiniciar renderização"**: recria a Activity do jogo, o que recria a
   surface Vulkan — é exatamente o "sair e voltar" que resolve.
 - **Perfis de desempenho** que aplicam combinações conservativeas
-  (720p / 30–60 fps / vsync / compilação de shaders em segundo plano).
+  (720p / 30 fps / vsync / compilação de shaders em segundo plano).
+- **Leitura de ritmo no app**: a aba Diagnóstico mostra os fps realmente
+  entregues e quantos quadros passaram de 60 ms na última janela.
 
-## 8. O que falta (alpha.2 em diante)
+## 9. O que falta (alpha.2 em diante)
 
 1. **Watchdog**: detectar a parada de apresentação dentro do app e recuperar
    sozinho (hoje exige o toque do usuário).

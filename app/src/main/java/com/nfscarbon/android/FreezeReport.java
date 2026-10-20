@@ -31,6 +31,9 @@ final class FreezeReport {
         double lastFrameMs;            // ultimo tempo de quadro registrado
         double presentedFps;           // quadros entregues por segundo (janela)
         int dropped;                   // apresentacoes descartadas (swapchain desatualizado)
+        double swapsPerSecond;         // ritmo real de entrega de quadro (histograma do motor)
+        int slowFrames;                // quadros acima de 60 ms na ultima janela
+        double worstFrameMs;           // pior quadro da ultima janela
         long bytes;                    // tamanho do log
         boolean readable;
 
@@ -82,6 +85,8 @@ final class FreezeReport {
             return snapshot;
         }
         List<long[]> presented = new ArrayList<>();  // {momento, contador}
+        int lastSwaps = 0, lastSlow = 0;
+        double lastWorst = 0;
         long lastStamp = 0;
         double frame = 0;
         int dropped = 0;
@@ -108,9 +113,49 @@ final class FreezeReport {
                 }
             }
             if (line.contains("Presentation to the swapchain image has been dropped")) dropped++;
+            at = line.indexOf("intervalos entre Swaps: ");
+            if (at >= 0) {
+                int end = line.indexOf("; peor fotograma ", at);
+                if (end > at) {
+                    int total = 0, slow = 0;
+                    for (String part : line.substring(at + 24, end).split("\\|")) {
+                        String piece = part.trim();
+                        int space = piece.lastIndexOf(' ');
+                        if (space <= 0) continue;
+                        String range = piece.substring(0, space).replace("ms", "").trim();
+                        try {
+                            int count = Integer.parseInt(piece.substring(space + 1).trim());
+                            total += count;
+                            double lower = 0;
+                            if (range.startsWith(">=")) lower = Double.parseDouble(range.substring(2));
+                            else if (range.contains("-")) lower = Double.parseDouble(range.substring(0, range.indexOf('-')));
+                            else if (range.startsWith("<")) continue;
+                            if (lower >= 60) slow += count;
+                        } catch (NumberFormatException ignored) { }
+                    }
+                    int worstAt = line.indexOf("peor fotograma ", end);
+                    if (worstAt >= 0) {
+                        int ms = line.indexOf(" ms", worstAt);
+                        if (ms > worstAt) {
+                            try {
+                                lastWorst = Double.parseDouble(line.substring(worstAt + 15, ms).trim());
+                            } catch (NumberFormatException ignored) { }
+                        }
+                    }
+                    lastSwaps = total;
+                    lastSlow = slow;
+                }
+            }
         }
         snapshot.lastFrameMs = frame;
         snapshot.dropped = dropped;
+        snapshot.slowFrames = lastSlow;
+        snapshot.worstFrameMs = lastWorst;
+        if (lastSwaps > 0 && presented.size() >= 2) {
+            // O motor escreve o histograma a cada ~20 s com o total de swaps da janela.
+            long[] last = presented.get(presented.size() - 1);
+            snapshot.swapsPerSecond = lastSwaps / 20.0;
+        }
         if (!presented.isEmpty()) {
             long[] first = presented.get(0);
             long[] last = presented.get(presented.size() - 1);
@@ -152,6 +197,12 @@ final class FreezeReport {
         if (snapshot.lastFrameMs > 0) {
             text.append(String.format(Locale.US, "Último quadro registrado: %.1f ms (%.1f fps)%n",
                     snapshot.lastFrameMs, 1000.0 / snapshot.lastFrameMs));
+        }
+        if (snapshot.swapsPerSecond > 0) {
+            text.append(String.format(Locale.US, "Ritmo real: %.1f fps entregues (última janela)%n",
+                    snapshot.swapsPerSecond));
+            text.append(String.format(Locale.US, "Quadros lentos (>60 ms) na janela: %d · pior quadro: %.1f ms%n",
+                    snapshot.slowFrames, snapshot.worstFrameMs));
         }
         text.append(String.format(Locale.US, "Apresentações descartadas: %d%n", snapshot.dropped));
         text.append(String.format(Locale.US, "Log: %.1f MB%n", snapshot.bytes / 1e6));

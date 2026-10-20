@@ -5,6 +5,18 @@ Versões seguem [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### Adicionado
+- Diagnóstico do ritmo real: a aba Diagnóstico passa a ler o histograma de
+  swaps do motor e mostra fps entregues, quadros lentos (>60 ms) e pior quadro
+  da última janela.
+- `tools/watch_freeze.py`: vigia de congelamento em tempo real por adb (para
+  uso opcional em PC).
+
+### Mudado
+- Perfil **Estável** passa de 60 para **30 fps**: medido no aparelho, a 30 fps
+  o motor entrega 600/600 swaps por 20 s (nenhum quadro acima de 36 ms) e a
+  60 fps o ritmo quebra. Ver `doc/02-congelamento.md`.
+
 ## [0.1.0-alpha.1] — 2026-10-20
 
 ### Adicionado
