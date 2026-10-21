@@ -62,7 +62,11 @@ echo "jogo fechado ok"
 
 echo
 echo "=== 2. sync + baixando export do aparelho ==="
-# abrir o launcher dispara SaveIO.sync() -> exporta o save atual para saveio/out
+# abrir o launcher dispara SaveIO.sync() -> exporta o save atual para saveio/out.
+# force-stop antes: com o app ja em primeiro plano o onResume NAO dispara e o
+# sync nao acontece (o export fica velho).
+adb shell "am force-stop $PKG" >/dev/null
+sleep 2
 adb shell "am start -n $PKG/.MainActivity" >/dev/null
 sleep 4
 adb pull "$REMOTE" "$novo" >/dev/null
