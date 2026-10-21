@@ -34,6 +34,8 @@ mkdir -p "$WORK"
 # base FIXA da identificação: o primeiro export limpo. Nao pode ser sobrescrita
 # por rodada (senao o diff perde a referencia).
 base="${BASE:-$WORK/ronda_0.device}"
+# a identificacao difa contra a RODADA ANTERIOR (o que mudou nesta rodada);
+# a base fixa (ronda_0) segue sendo a referencia para a forja final.
 # proximo indice = MAIOR indice existente + 1 (contar arquivos quebra se um
 # numero faltar no meio).
 max=0
@@ -43,6 +45,9 @@ for f in "$WORK"/ronda_*.device; do
   if [ "$i" -gt "$max" ]; then max="$i"; fi
 done
 novo="$WORK/ronda_$((max + 1)).device"
+if [ "$max" -gt 0 ]; then
+  base="$WORK/ronda_$max.device"
+fi
 
 echo "=== 1. o jogo esta fechado? ==="
 # o motor loga a cada ~10 s enquanto renderiza; o launcher nao escreve no log
@@ -84,12 +89,17 @@ idx=$(PYTHONPATH="$HERE" python3 - "$base" "$novo" <<'PY'
 import sys
 import savefmt as F
 a = open(sys.argv[1], "rb").read(); b = open(sys.argv[2], "rb").read()
-mud = [i for i in range(F.AREA_COUNT) if F.area_record(a, i) != F.area_record(b, i)]
-print(mud[0] if len(mud) == 1 else "")
+ganhou = []
+for i in range(F.AREA_COUNT):
+    fa = F.area_record(a, i)[2]
+    fb = F.area_record(b, i)[2]
+    if not (fa & 0x01) and (fb & 0x01):
+        ganhou.append(i)
+print(ganhou[0] if len(ganhou) == 1 else "")
 PY
 )
 if [ -n "$idx" ]; then
-  echo "uma unica area mudou: $idx -> registering"
+  echo "uma unica area ganhou a tentativa 0x01: $idx -> registrando"
   python3 "$HERE/zerar_drift.py" mapear "$nome" "$idx"
 else
   echo "use: python3 tools/zerar_drift.py mapear \"$nome\" <indice>"

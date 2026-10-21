@@ -142,17 +142,28 @@ def cmd_diff(antes: str, depois: str) -> int:
         print("   salve no menu e feche o jogo. Sair no meio não marca nada.")
         return 1
     print(f"áreas que mudaram: {len(mudou)}\n")
+    ganhou = []
     for i in mudou:
         x, y = aa[i], ab[i]
         print(f"  área {i:>2}  [{y['crew']}]")
-        print(f"      antes: owner_a=0x{x['owner_a']:08X} owner_b=0x{x['owner_b']:08X} "
+        print(f"      antes: owner_a=0x{x['owner_a']:08X} ({describe(x['owner_a'])}) "
+              f"owner_b=0x{x['owner_b']:08X} ({describe(x['owner_b'])}) "
               f"flags=0x{x['flags']:02X} ({flag_names(x['flags'])})")
-        print(f"      agora: owner_a=0x{y['owner_a']:08X} owner_b=0x{y['owner_b']:08X} "
+        print(f"      agora: owner_a=0x{y['owner_a']:08X} ({describe(y['owner_a'])}) "
+              f"owner_b=0x{y['owner_b']:08X} ({describe(y['owner_b'])}) "
               f"flags=0x{y['flags']:02X} ({flag_names(y['flags'])})")
         if not x["tried"] and y["tried"]:
-            print("      -> TENTADA agora (você entrou nesta missão)")
+            ganhou.append(i)
+            print("      -> GANHOU a tentativa 0x01  <<< É ESTA A MISSÃO "
+                  f"(dono anterior: {describe(x['owner_a'])})")
+        if x["tried"] and not y["tried"]:
+            print("      -> perdeu a marca de tentativa (o jogo limpou um estado antigo)")
         if not x["won"] and y["won"]:
             print("      -> VENCIDA agora")
+    if ganhou:
+        print(f"\n>>> missão jogada = área {ganhou[0]} (hex {ganhou[0]//7}, pos {ganhou[0]%7})")
+    else:
+        print("\n>>> nenhuma área GANHOU a tentativa 0x01 — revise a rodada")
     # marcador secundário: a tabela de eventos (0x10050) também muda
     ev = []
     for s in range(243):
