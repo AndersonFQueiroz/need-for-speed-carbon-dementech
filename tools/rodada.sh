@@ -1,45 +1,54 @@
 #!/usr/bin/env bash
-# Dementech · NFS Carbon — rodada de identificação de drift.
+# Dementech · NFS Carbon — rodada de identificação de um drift.
 #
 # O log do motor NÃO tem o ID da missão, mas o SAVE tem: quando o jogador entra
-# numa corrida, o jogo reescreve o registro daquela área (flag 0x01 "tentada",
-# owner_a vira o crew rival). Diffing dois saves mostra exatamente qual área
-# mudou — e essa é a missão em que o jogador entrou.
+# numa corrida, o jogo reescreve o registro daquela área (flag 0x01 "tentada").
+# Diffing dois saves mostra exatamente qual área mudou — e essa é a missão em
+# que o jogador entrou. Validado com dado real (PROBE_T -> PROBE_V).
 #
-#   ./tools/rodada.sh pull     <destino>              baixa o export do aparelho
-#   ./tools/rodada.sh diff     <antes> <depois>        o que mudou
-#   ./tools/rodada.sh mapa     <save>                 hexágonos e pendências
+#   ./tools/rodada.sh <nome-da-missão>
 #
-# Uso típico de uma rodada:
-#   1. o jogador entra numa missão e sai
-#   2. fecha o jogo e abre o launcher (o export é atualizado)
-#   3. ./tools/rodada.sh pull /tmp/opencode/ronda_N.device
-#   4. ./tools/rodada.sh diff  /tmp/opencode/base.device /tmp/opencode/ronda_N.device
+# O que o script faz:
+#   1. baixa o export do aparelho (saveio/out/ALIAS_ANDERSON)
+#   2. difa contra a base da rodada anterior
+#   3. aponta a área que mudou
+#   4. registra nome -> índice em tools/drift_map.json
+#
+# Pré-requisito no aparelho: a corrida foi jogada (e o jogo gravou o save);
+# depois o launcher Dementech foi aberto — é ele que exporta.
 #
 # SPDX-License-Identifier: MIT
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REMOTE="/sdcard/Android/data/com.nfscarbon.android/files/saveio/out/ALIAS_ANDERSON"
+WORK="${WORK:-/tmp/opencode}"
 
-cmd="${1:-}"; shift || true
+nome="${1:?informe o nome da missao (ex: Kimei Temple)}"
 
-case "$cmd" in
-  pull)
-    destino="${1:?informe o destino}"
-    adb pull "$REMOTE" "$destino"
-    echo "export do jogo: $destino"
-    ;;
-  diff)
-    antes="${1:?}"; depois="${2:?}"
-    python3 "$HERE/zerar_drift.py" diff "$antes" "$depois"
-    ;;
-  mapa)
-    save="${1:?}"
-    python3 "$HERE/zerar_drift.py" mapa "$save"
-    ;;
-  *)
-    sed -n '2,20p' "${BASH_SOURCE[0]}"
-    exit 1
-    ;;
-esac
+mkdir -p "$WORK"
+n=$(ls "$WORK"/ronda_*.device 2>/dev/null | wc -l)
+base="$WORK/ronda_$n.device"
+novo="$WORK/ronda_$((n + 1)).device"
+
+echo "=== baixando export do aparelho ==="
+adb pull "$REMOTE" "$novo" >/dev/null
+echo "salvo: $novo"
+
+if [ ! -f "$base" ]; then
+  cp "$novo" "$base"
+  echo
+  echo "=== base da identificação salva: $base ==="
+  echo "Agora: jogue UMA missão, feche o jogo, abra o launcher Dementech"
+  echo "e rode de novo:  ./tools/rodada.sh \"$nome\""
+  exit 0
+fi
+
+echo
+echo "=== diff da ronda: base -> agora ==="
+python3 "$HERE/zerar_drift.py" diff "$base" "$novo" || exit 1
+
+echo
+echo "=== registrando o mapeamento ==="
+
+echo "use: python3 tools/zerar_drift.py mapear \"$nome\" <indice>"
