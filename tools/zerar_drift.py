@@ -131,8 +131,15 @@ def cmd_diff(antes: str, depois: str) -> int:
     ab = areas(b)
     mudou = [i for i in range(F.AREA_COUNT) if aa[i] != ab[i]]
     if not mudou:
-        print("nenhuma área mudou — a corrida provavelmente não chegou a ser registrada")
-        print("(o save só é gravado quando o jogo salva; volte ao mapa e deixe o jogo salvar)")
+        print("NENHUMA área mudou — a corrida NÃO foi registrada pelo jogo.\n")
+        pend = [a for a in ab if a["visible"] and not a["won"]]
+        print("pendentes no mapa (visíveis, não vencidas):")
+        for a in pend:
+            print(f"    área {a['i']:>2}  hex {a['i']//7:>2} pos {a['i']%7}  "
+                  f"{a['crew']:<24} flags 0x{a['flags']:02X} ({flag_names(a['flags'])})")
+        print("\nO jogo só grava a tentativa (flag 0x01) quando a CORRIDA TERMINA.")
+        print("=> rode a missão até o fim (vencer OU perder), volte ao mapa,")
+        print("   salve no menu e feche o jogo. Sair no meio não marca nada.")
         return 1
     print(f"áreas que mudaram: {len(mudou)}\n")
     for i in mudou:
