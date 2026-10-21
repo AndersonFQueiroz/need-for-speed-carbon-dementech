@@ -51,6 +51,15 @@ final class GameOptions {
             new String[]{"640x360", "1024x576", "1280x720", "1600x900", "1920x1080"},
             new String[]{"640×360 · desempenho", "1024×576 · equilibrado", "1280×720 · qualidade",
                 "1600×900 · só no renderizador nativo", "1920×1080 · só no renderizador nativo"}),
+        // Teto da cache de texturas do motor. O padrao (384 MB) + o pool de 13
+        // blocos de 32 MB (416 MB) estouram a memoria da GPU em aparelhos com
+        // 6 GB: o driver (Turnip/KGSL) perde o device (VK_ERROR_DEVICE_LOST) e a
+        // imagem trava. Abaixar o teto mantem o uso de memoria da GPU longe do
+        // limite, ao custo de mais eviccao de textura.
+        new Option("texture_memory", "Memória de texturas", "nfsmw_nativo_texturas_mb_max", "384",
+            new String[]{"384", "256", "192", "128"},
+            new String[]{"384 MB · padrão do motor", "256 MB", "192 MB · recomendado em 6 GB",
+                "128 MB · máxima segurança"}),
         new Option("fps", "Ritmo alvo (FPS)", null, "60",
             new String[]{"30", "60", "90", "120", "unlimited"},
             new String[]{"30 FPS", "60 FPS", "90 FPS · experimental", "120 FPS · experimental", "Sem limite · experimental"}),

@@ -5,6 +5,44 @@ Versões seguem [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+## [0.1.0-alpha.3] — 2026-10-21
+
+### Corrigido
+- **A imagem travada se recupera sozinha, sem reiniciar o jogo.** O watchdog
+  (a cada 5 s) passa a reparar o caso em que o motor continua vivo mas nada
+  chega na tela: o contador de apresentação para enquanto o log continua
+  sendo escrito. Nesses casos o app renova a surface (o motor recria a
+  swapchain) e a imagem volta — **o jogo e o save continuam como estavam**,
+  então não se perde o andamento de uma corrida.
+  - A renovação é limitada (6 por sessão, no mínimo 45 s entre elas) e é
+    desligada quando o log acusa **device Vulkan perdido** (`VK_ERROR_DEVICE_LOST`):
+    nesse caso renovar a surface não adianta (o motor ficaria recriando a
+    swapchain sem parar) e o app apenas registra o evento no diagnóstico.
+- Diagnóstico passa a ler as assinaturas de perda do device no `carbon.log`
+  (`VK_ERROR_DEVICE_LOST`, "device has been lost", "Protocol error") e mostra
+  "DEVICE VULKAN PERDIDO" no painel, em vez de só dizer "imagem travada".
+
+### Adicionado
+- **Opção "Memória de texturas"** (cvar `nfsmw_nativo_texturas_mb_max`):
+  384 MB (padrão do motor) / 256 / 192 / 128 MB. O motor usa até 416 MB de
+  textura na GPU compartilhada; em aparelhos com 6 GB isso estoura a memória
+  da GPU e o driver (Turnip/KGSL) perde o device — o congelamento e a tela
+  preta. **192 MB é o recomendado em 6 GB.**
+- `tools/zerar_drift.py` / `tools/rodada.sh`: zerar drift de freeroam pelo nome
+  (forja no formato nativo que o jogo grava, recusa registro de mapa vermelho)
+  e a rotina de identificação de missão por rodada (sync + diff do save).
+  Ver `doc/09-difts-freeroam.md`.
+
+### Documentado
+- **A causa do congelamento, com o log** (21/10): o congelamento tem duas
+  formas. (a) *surface velha*: o motor continua vivo e desenhando, mas a
+  surface foi trocada e a imagem não sai mais — o log mostra
+  `Presentation ... has been dropped as the swapchain or the surface has
+  become outdated` e o contador de apresentação para; (b) *device morto*:
+  `VK_ERROR_DEVICE_LOST` no driver Turnip/KGSL, e o presenter do motor entra
+  em laço recriando a swapchain (1.343 recriações em 6 min) até a surface
+  não poder mais ser criada (tela preta). Detalhe em `doc/02-congelamento.md`.
+
 ## [0.1.0-alpha.2] — 2026-10-21
 
 ### Adicionado

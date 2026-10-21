@@ -34,6 +34,7 @@ final class FreezeReport {
         int surfaceFails;              // vezes que o motor nao criou a surface/swapchain
         int submitFails;               // vezes que o motor nao conseguiu submeter os buffers
         int swapchainRebuilds;         // recriacoes de swapchain (laco de reconstrucao)
+        int deviceLost;                // vezes que o device Vulkan morreu (driver)
         double swapsPerSecond;         // ritmo real de entrega de quadro (histograma do motor)
         int slowFrames;                // quadros acima de 60 ms na ultima janela
         double worstFrameMs;           // pior quadro da ultima janela
@@ -57,6 +58,14 @@ final class FreezeReport {
          */
         boolean surfaceDead() {
             return readable && surfaceFails > 0;
+        }
+
+        /**
+         * O device Vulkan morreu no driver (Turnip/KGSL). Ningem desenha mais:
+         * renovar a surface nao adianta, so recriar o device (reiniciar o jogo).
+         */
+        boolean gpuLost() {
+            return readable && deviceLost > 0;
         }
     }
 
@@ -109,6 +118,7 @@ final class FreezeReport {
         int surfaceFails = 0;
         int submitFails = 0;
         int rebuilds = 0;
+        int lost = 0;
         for (String line : tail.split("\n")) {
             long stamp = timestamp(line);
             if (stamp > 0) lastStamp = stamp;
@@ -136,6 +146,11 @@ final class FreezeReport {
                     || line.contains("Failed to create a swapchain")) surfaceFails++;
             if (line.contains("Failed to submit command buffers")) submitFails++;
             if (line.contains("swapchain with format")) rebuilds++;
+            // "VK_ERROR_DEVICE_LOST" (Turnip/KGSL) e as mensagens do presenter
+            // que acknowledge a perda do device.
+            if (line.contains("VK_ERROR_DEVICE_LOST")
+                    || line.contains("device has been lost")
+                    || line.contains("Protocol error")) lost++;
             at = line.indexOf("intervalos entre Swaps: ");
             if (at >= 0) {
                 int end = line.indexOf("; peor fotograma ", at);
@@ -175,6 +190,7 @@ final class FreezeReport {
         snapshot.surfaceFails = surfaceFails;
         snapshot.submitFails = submitFails;
         snapshot.swapchainRebuilds = rebuilds;
+        snapshot.deviceLost = lost;
         snapshot.slowFrames = lastSlow;
         snapshot.worstFrameMs = lastWorst;
         if (lastSwaps > 0 && presented.size() >= 2) {
@@ -237,6 +253,11 @@ final class FreezeReport {
                             + "(%d buffers rejeitados, %d recriações de swapchain).%n",
                     snapshot.surfaceFails, snapshot.submitFails, snapshot.swapchainRebuilds));
             text.append("A tela preta NÃO se recupera: só reabrindo o jogo.\n");
+        }
+        if (snapshot.gpuLost()) {
+            text.append(String.format(Locale.US,
+                    "☠ DEVICE VULKAN PERDIDO (%d): o driver (Turnip/KGSL) morreu. "
+                            + "A imagem não volta sem recriar o device.%n", snapshot.deviceLost));
         }
         text.append(String.format(Locale.US, "Log: %.1f MB%n", snapshot.bytes / 1e6));
         if (snapshot.suspect()) {
