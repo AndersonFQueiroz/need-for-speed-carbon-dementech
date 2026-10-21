@@ -5,6 +5,25 @@ Versões seguem [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### Corrigido
+- **"Reiniciar renderização" não cai mais no launcher.** `recreate()` fecha a
+  Activity do jogo, o motor encerra a janela e mata o processo
+  (`Title terminated; hard-exiting process`), então o Android reabre o app pelo
+  launcher. Agora o botão faz o mesmo gesto do usuário: manda a task para o
+  fundo (destruindo a surface) e traz de volta em 700 ms — o processo
+  continua vivo e o jogador volta **para o jogo**.
+- **Painel de configurações rolável**: em paisagem o diálogo cortava as
+  últimas opções (60 fps, driver, etc.) e não dava para ver o resto.
+- Diagnóstico dentro do jogo: a distinção entre "o motor parou" e "o motor está
+  saudável e a tela parou" aparece no veredito, com a ação certa para cada caso.
+
+### Documentado
+- **Modo B de congelamento** (20/10, sessão a 60 fps): o motor entregou
+  10.800 quadros com 100% de aquisição sem espera, zero descartes, 38–57 fps
+  reais e áudio normal — e a tela estava parada. O problema é a
+  surface/display, não o motor. Isso explica por que "sair e voltar" resolve e
+  por que gravar tela evita. Ver `doc/02-congelamento.md`, seção 5.1.
+
 ### Adicionado
 - Diagnóstico do ritmo real: a aba Diagnóstico passa a ler o histograma de
   swaps do motor e mostra fps entregues, quadros lentos (>60 ms) e pior quadro

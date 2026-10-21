@@ -143,11 +143,73 @@ O que ainda falta testar (H1): 30 fps com `vulkan_async_skip_incomplete_frames`
 desligado, e 30 fps com a surface recriada — porque a sessão de 30 fps ainda
 pode travar em longo prazo, só que muito menos.
 
+
+## 5.1 Modo B: motor saudável, tela parada (descoberto em 20/10, 21:05)
+
+Uma sessão a **60 fps** congelou com o áudio tocando. O log dessa sessão
+(`carbon.log`, 21:05:23 → 21:09:32) mostra o motor **perfeitamente saudável**:
+
+| indicador | valor | leitura |
+|---|---|---|
+| quadros apresentados | 600 → **10.800** (+10.200) | o motor entregou quadro o tempo todo |
+| aquisição sem espera | **100,0 %** em todas as amostras | a fila de apresentação nunca travou |
+| apresentações descartadas | **0** | a surface não ficou desatualizada |
+| ritmo (swaps/20 s) | 768 · 1019 · 967 · 717 · 1137 | 38–57 fps reais, com 832 swaps abaixo de 25 ms |
+| pior quadro por janela | 132 · 35 · 35 · 51 · 99 ms | nada fora do normal |
+| GPU real p50 | **14,5 ms** | GPU folgada |
+| áudio | `1875 tramas con datos y 0 de silencio` | áudio normal |
+
+**Ou seja: o jogo renderizava, apresentava e soava normalmente — e mesmo assim
+a tela estava parada.** O congelamento, neste caso, está **na surface/display**,
+não no motor. Isso explica (e confirma) as pistas do upstream:
+
+- **sair e voltar resolve** → recria a surface, refaz o caminho de apresentação;
+- **gravar tela evita** → o gravador força um caminho de composição diferente;
+- **trocar driver não resolve** → não é o driver da GPU que entrega quadro.
+
+### Os dois modos de falha
+
+| | Modo A — motor para | Modo B — tela para (display) |
+|---|---|---|
+| Contador de apresentação | **para de crescer** | cresce normal |
+| Aquisição sem espera | cai / passa a esperar | **100 %** |
+| Apresentações descartadas | 12–18 por sessão | **0** |
+| Ritmo real | 9–13 fps, 50 hitches por janela | 38–57 fps, sem hitches |
+| Onde está o problema | fila/queue do motor | surface / composição do Android |
+| Como a vigia detecta | **sim** (contador parado) | **não** (precisa de leitura de pixel ou do relato) |
+| Correção | recriar a surface (o motor refaz a fila) | recriar a surface |
+
+### O que a vigia (e o diagnóstico) conseguem e não conseguem
+
+A vigia compara o contador de apresentação a cada 5 s: ela pega o **Modo A**.
+No **Modo B** o motor está saudável, então o log não mostra nada de errado — e
+a única evidência é a tela parada (e o áudio tocando). Por isso o diagnóstico
+agora diz exatamente isso:
+
+> "MOTOR ENTREGANDO QUADROS NORMALMENTE — se a imagem está parada, o problema é
+> na surface/display: use *Reiniciar renderização*."
+
+Detectar o Modo B automaticamente exigiria **ler pixels da tela** (PixelCopy
+em cima da SurfaceView) e comparar com o contador do motor — é a próxima
+frente de trabalho, e é cara (uma leitura por segundo).
+
+### Recuperação: por que "reiniciar renderização" voltava pro launcher
+
+`Activity.recreate()` fecha a Activity do jogo → o motor encerra a janela →
+`Title terminated; hard-exiting process` → **o processo morre** e o Android
+reabre o app pelo launcher. Não dá para reiniciar a Activity.
+
+A correção (no app): **fazer o que o usuário faz com o gesto** — mandar a task
+para o fundo (`moveTaskToBack`, que destrói a surface) e trazer de volta em
+700 ms. O processo continua vivo, a surface é recriada, e o jogador volta
+**para o jogo**, não para o launcher.
+
 ## 6. Hipóteses (e como testar cada uma)
 
 | # | Hipótese | Teste | Ferramenta |
 |---|---|---|---|
-| **H1** | O *swapchain*/surface fica desatualizado e as frames são descartadas na apresentação (`Presentation ... dropped as the swapchain or the surface has become outdated`) | Loop de 20 min com `vulkan_async_skip_incomplete_frames=false` e `render_target_path_vulkan` alternativo | `files/args.txt` (injeta `--flag=valor` na próxima sessão) |
+| **H1** | O *swapchain*/surface fica desatualizado e as frames são descartadas na apresentação (`Presentation ... dropped as the swapchain or the surface has become outdated`) — **Modo A** | Loop de 20 min com `vulkan_async_skip_incomplete_frames=false` e `render_target_path_vulkan` alternativo | `files/args.txt` (injeta `--flag=valor` na próxima sessão) |
+| **H1b** | A **composição do Android** (SurfaceFlinger) para de aplicar as frames na tela, com o motor saudável — **Modo B** | Comparar o conteúdo da tela (PixelCopy) com o contador do motor; testar com o gravador de tela ligado | leitura de pixel (a implementar) |
 | **H2** | Ritmo alvo alto (60 fps) satura a fila e derruba o ritmo | **medido**: 30 fps → 600/600 swaps e 0 lentos; 60 fps → hitches e 50 lentos na sessão travada | perfil Estável (30 fps) do app |
 | **H3** | **Economia de energia do aparelho** limita CPU/GPU e derruba o ritmo | Desligar a economia de energia e repetir a mesma sessão | ajuste do sistema |
 | **H2b** | `vulkan_async_skip_incomplete_frames` descartando quadro válido | A/B com o flag desligado | `files/args.txt` |

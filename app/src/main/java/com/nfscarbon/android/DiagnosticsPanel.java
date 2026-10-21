@@ -54,10 +54,11 @@ final class DiagnosticsPanel extends LinearLayout {
             verdict.setText("SEM LOG");
             verdict.setTextColor(Ui.CHROME_DIM);
         } else if (snapshot.suspect()) {
-            verdict.setText("⚠ IMAGEM TRAVADA — o motor parou de entregar quadro");
+            verdict.setText("⚠ O MOTOR PAROU DE ENTREGAR QUADRO (imagem e áudio podem travar junto)");
             verdict.setTextColor(Ui.WARNING);
         } else {
-            verdict.setText("APRESENTAÇÃO NORMAL");
+            verdict.setText("MOTOR ENTREGANDO QUADROS NORMALMENTE — se a imagem está parada, "
+                    + "o problema é na surface/display: use “Reiniciar renderização”");
             verdict.setTextColor(Ui.OK);
         }
         long seconds = lastStallSeconds(getContext());

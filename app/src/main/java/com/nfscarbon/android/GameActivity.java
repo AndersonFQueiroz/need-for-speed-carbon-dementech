@@ -3,6 +3,7 @@ package com.nfscarbon.android;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
@@ -392,9 +393,11 @@ public final class GameActivity extends SDLActivity
                     .setNegativeButton("Cancelar", null)
                     .show();
         });
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.addView(panel);
         android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(this)
                 .setTitle("Configurações do jogo")
-                .setView(panel)
+                .setView(scroll)
                 .setPositiveButton("Fechar", null)
                 .create();
         dialog.show();
@@ -420,10 +423,24 @@ public final class GameActivity extends SDLActivity
      * o que destrava a imagem quando ela para (sair do app e voltar).
      */
     private void recoverRendering() {
+        // recreate() nao serve: o motor encerra o processo ao fechar a janela
+        // ("Title terminated; hard-exiting process") e o usuario cai no launcher.
+        // O que resolve e recriar a SURFACE, e o mesmo truque de "sair e voltar":
+        // mandar a task para o fundo (a surface e destruida) e trazer de volta.
         try {
-            recreate();
+            moveTaskToBack(true);
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                Intent bring = new Intent(this, GameActivity.class);
+                bring.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                try {
+                    startActivity(bring);
+                } catch (RuntimeException error) {
+                    Log.w(TAG, "recover", error);
+                }
+            }, 700);
         } catch (RuntimeException error) {
-            Log.w(TAG, "recreate", error);
+            Log.w(TAG, "recover", error);
         }
     }
 
