@@ -55,6 +55,8 @@ import java.util.List;
 public final class GameActivity extends SDLActivity
         implements TouchControlsView.Host, InputManager.InputDeviceListener, SensorEventListener {
     private static final String TAG = "NFSCARBON";
+    /** true enquanto a Activity do jogo existe: o save so pode ser importado com o jogo fechado. */
+    static boolean isRunning = false;
     private static final String SETTINGS = "nfscarbon.toml";
 
     private String gameRoot;
@@ -109,7 +111,8 @@ public final class GameActivity extends SDLActivity
         // The native side keeps nfscarbon.toml, the pipeline cache and its logs in the "executable folder", which
         // for app_process would be /system/bin (see GetExecutableFolder in filesystem_posix.cpp).
         try {
-            Os.setenv("REX_APP_FOLDER", userRoot, true);
+            isRunning = true;
+        Os.setenv("REX_APP_FOLDER", userRoot, true);
         } catch (ErrnoException e) {
             Log.w(TAG, "REX_APP_FOLDER", e);
         }
@@ -223,6 +226,7 @@ public final class GameActivity extends SDLActivity
 
     @Override
     protected void onDestroy() {
+        isRunning = false;
         if (watchdogHandler != null) watchdogHandler.removeCallbacks(watchdogTick);
         watchdogThread.quitSafely();
         super.onDestroy();

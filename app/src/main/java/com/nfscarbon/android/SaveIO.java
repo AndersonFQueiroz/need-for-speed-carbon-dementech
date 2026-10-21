@@ -52,13 +52,17 @@ final class SaveIO {
         File in = new File(new File(io, "in"), SAVE_NAME);
         File out = new File(new File(io, "out"), SAVE_NAME);
 
-        // 1) importa um save corrigido, se houver
-        if (in.isFile()) {
+        // 1) importa um save corrigido, se houver — SO com o jogo fechado:
+        // com o jogo vivo ele reescreve o arquivo e o patch se perde.
+        if (in.isFile() && !GameActivity.isRunning) {
             try {
                 copy(in, save);
                 in.delete();
             } catch (IOException ignored) {
             }
+        } else if (in.isFile()) {
+            // jogo aberto: deixa o arquivo para depois, em vez de perder o patch
+            android.util.Log.w("Dementech", "saveio/in ignorado: o jogo esta rodando");
         }
         // 2) exporta o save atual
         try {
