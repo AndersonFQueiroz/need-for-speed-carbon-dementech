@@ -33,12 +33,38 @@ final class GpuDrivers {
                 if (!library.matches("[A-Za-z0-9_.+-]+\\.so")) continue;
                 File loadDir = new File(dir, meta.getString("folder"));
                 if (!loadDir.getCanonicalPath().startsWith(dir.getCanonicalPath() + "/")) continue;
-                if (new File(loadDir, library).isFile())
+                if (new File(loadDir, library).isFile()) {
+                    ensureAlias(dir, loadDir, library);
                     result.add(new Driver(dir.getName(), meta.getString("name"), loadDir, library));
+                }
             } catch (Exception ignored) { }
         }
         result.sort(Comparator.comparing(d -> d.name.toLowerCase(Locale.ROOT)));
         return result;
+    }
+
+    /**
+     * O carregador de Vulkan do motor procura o driver pelo nome da convencao
+     * adrenotools: "<N>_patched.so" (ele varre N=0,1,2... no diretorio que o
+     * motor recebe em --android_gpu_driver_dir). O pacote importado traz o
+     * nome generico ("libvulkan_freedreno.so"), que o carregador NAO ve — o
+     * motor acabava carregando o driver de outro lugar (o do sistema ou o
+     * instalado pelo app adrenotools), ignorando o que o dono importou.
+     *
+     * O alias fica no diretorio do pacote (fora da pasta "payload", que e
+     * somente-leitura) e aponta para a biblioteca.
+     */
+    private static void ensureAlias(File packageDir, File loadDir, String library) {
+        File alias = new File(packageDir, "0_patched.so");
+        if (alias.exists()) return;
+        File source = new File(loadDir, library);
+        try {
+            Files.createSymbolicLink(alias.toPath(), source.getAbsoluteFile().toPath());
+        } catch (Exception ignored) {
+            try {
+                Files.copy(source.toPath(), alias.toPath());
+            } catch (Exception ignoredToo) { }
+        }
     }
     static String selectedId(Context context) {
         return GameOptions.prefs(context).getString("gpu_driver", "");
@@ -76,14 +102,17 @@ final class GpuDrivers {
             // Keep dependencies alongside the main library, including ZIPs with a wrapper directory.
             String relative = "payload";
             File installed = new File(root(context), UUID.randomUUID().toString());
-            if (!installed.mkdirs()) throw new IOException("No se pudo instalar el driver.");
+            if (!installed.mkdirs()) throw new IOException("No se pudo instalar el paquete.");
             try {
-                if (!packageRoot.renameTo(new File(installed, relative))) throw new IOException("No se pudo instalar el paquete.");
+                if (!packageRoot.renameTo(new File(installed, relative))) throw new IOException("No se pudo mover el paquete.");
                 JSONObject record = new JSONObject().put("name", name).put("libraryName", library).put("folder", relative);
                 Files.write(new File(installed, "driver.json").toPath(), record.toString().getBytes(StandardCharsets.UTF_8));
                 readOnly(new File(installed, relative));
+                // Alias with the name the engine's Vulkan loader looks for ("<N>_patched.so").
+                ensureAlias(installed, new File(installed, relative), library);
             } catch (Exception error) { DriverArchive.delete(installed); throw error; }
             return new Driver(installed.getName(), name, new File(installed, relative), library);
+
         } finally {
             if (stage.exists()) DriverArchive.delete(stage);
         }
@@ -117,7 +146,8 @@ final class GpuDrivers {
         Driver driver = selected(context);
         args.add("--android_native_lib_dir=" + context.getApplicationInfo().nativeLibraryDir);
         args.add("--android_tmp_dir=" + context.getCacheDir().getAbsolutePath());
-        args.add("--android_gpu_driver_dir=" + (driver == null ? "" : driver.directory.getAbsolutePath() + "/"));
+        // O motor precisa do diretorio que contem o alias "<N>_patched.so" (raiz do pacote).
+        args.add("--android_gpu_driver_dir=" + (driver == null ? "" : driver.directory.getParentFile().getAbsolutePath() + "/"));
         args.add("--android_gpu_driver_name=" + (driver == null ? "" : driver.library));
     }
 }
