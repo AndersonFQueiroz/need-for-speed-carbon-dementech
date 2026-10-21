@@ -67,6 +67,8 @@ public final class MainActivity extends Activity {
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN);
         if (state != null) playAfterProbe = state.getBoolean("play_after_probe");
         setContentView(buildScreen());
+        // Importa um save corrigido (saveio/in) e exporta o atual (saveio/out).
+        SaveIO.sync(this);
         checkUpdates(false);
     }
 
@@ -429,6 +431,7 @@ public final class MainActivity extends Activity {
     @Override public void onResume() {
         super.onResume();
         launcherResumed = true;
+        SaveIO.sync(this);
         refreshOptions();
         refresh();
         refreshDiagnostics();
