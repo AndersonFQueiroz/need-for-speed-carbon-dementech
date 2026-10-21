@@ -204,6 +204,34 @@ para o fundo (`moveTaskToBack`, que destrói a surface) e trazer de volta em
 700 ms. O processo continua vivo, a surface é recriada, e o jogador volta
 **para o jogo**, não para o launcher.
 
+### 5.2 A surface morreu de vez: tela preta sem volta (21/10, 12:07–12:25)
+
+O mesmo gesto, na situação errada, **quebra** o jogo. Sessão medida no log do
+motor (`carbon.log`, 12:07:21 → 12:25:39):
+
+| hora | evento |
+|---|---|
+| 12:07:37 | `Presentation to the swapchain image has been dropped as the swapchain or the surface has become outdated` — a surface ficou desatualizada |
+| 12:11:34 | o motor começa a recriar a swapchain (`Created 2400x1080 swapchain`) |
+| 12:19:51 | **laço de reconstrução**: 343 recriações de swapchain + 343 `Failed to submit command buffers` em 1 minuto; o motor renderiza (`anillo: 2220 dibujos`) mas **não apresenta nada** (`0 intercambios`, `GPU 0.0 reales`) |
+| 12:20:08 | `Failed to create a swapchain` + **`Failed to create a Vulkan surface`** (1ª vez) |
+| 12:25:35 e 12:25:39 | o dono aperta "Reiniciar renderização": a surface **não volta** (3 falhas no total) e a tela fica **preta para sempre** |
+
+Diagnóstico: o motor não sabe recriar a surface; o truque de "fundo e volta"
+**reforça** o laço (cada ida ao fundo destrói a surface de novo) e o
+`CLEAR_TOP` do launcher também não resolve — fechar a Activity mata o processo
+(`Title terminated; hard-exiting process`) e o jogo nem chega a reabrir.
+
+**Sinais no log (para o diagnóstico automático ler):**
+- `Failed to create a Vulkan surface` / `Failed to create a swapchain` → surface morta;
+- `Failed to submit command buffers` em rajada + `Created … swapchain` repetido → laço de reconstrução;
+- `0 intercambios` e `GPU 0.0 reales` nos quadros → o motor desenha, ninguém vê.
+
+**Saída:** matar o processo e relançar o jogo (o relançamento é pedido ao
+sistema antes do `exit(0)`, então volta sozinho em um processo novo). Implementado
+no alpha.2: o painel de diagnóstico passa a avisar que a tela preta é esperada
+e oferece **"Reabrir o jogo"**.
+
 ## 6. Hipóteses (e como testar cada uma)
 
 | # | Hipótese | Teste | Ferramenta |

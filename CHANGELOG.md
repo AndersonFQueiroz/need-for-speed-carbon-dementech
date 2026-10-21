@@ -5,7 +5,27 @@ Versões seguem [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+## [0.1.0-alpha.2] — 2026-10-21
+
+### Adicionado
+- `tools/zerar_drift.py` e `tools/rodada.sh`: zerar **drift de freeroam pelo
+  nome** (forja no formato nativo que o jogo grava, recusa registro de mapa
+  vermelho) e a rotina de identificação de missão por rodada (sync + diff do
+  save). Ver `doc/09-difts-freeroam.md`.
+
 ### Corrigido
+- **Tela preta depois de "Reiniciar renderização" (21/10).** Quando a surface
+  Vulkan morre, o motor entra em laço tentando recriá-la (1.343 recriações de
+  swapchain em 6 minutos, 1.341 "Failed to submit command buffers") e no fim
+  responde "Failed to create a Vulkan surface" — aí a tela fica preta **para
+  sempre**, porque não há surface para apresentar. Agora:
+  - o diagnóstico reconhece a assinatura (`Failed to create a Vulkan surface` /
+    `Failed to create a swapchain`) e diz que a tela preta é esperada;
+  - "Reiniciar renderização" detecta a surface morta e não insiste no truque de
+    "fundo e volta" (que só piora o laço): oferece **"Reabrir o jogo"**, que
+    mata o processo e relança o jogo em um processo novo (a única saída real);
+  - o botão "Reabrir o jogo" também aparece no painel de diagnóstico do
+    launcher.
 - **"Reiniciar renderização" não cai mais no launcher.** `recreate()` fecha a
   Activity do jogo, o motor encerra a janela e mata o processo
   (`Title terminated; hard-exiting process`), então o Android reabre o app pelo

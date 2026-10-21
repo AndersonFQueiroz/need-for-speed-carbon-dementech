@@ -1,7 +1,9 @@
 // Adapted from codepdbh/nfsmw-android (5f581c6). SPDX-License-Identifier: GPL-3.0-only
 package com.nfscarbon.android;
 
+import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -427,6 +429,21 @@ public final class GameActivity extends SDLActivity
      * o que destrava a imagem quando ela para (sair do app e voltar).
      */
     private void recoverRendering() {
+        // Se a surface Vulkan morreu, o truque de "fundo e volta" nao resolve:
+        // o motor entra em laco tentando recriar a surface e falha (tela preta
+        // definitiva). Nesse caso so matar o processo resolve.
+        FreezeReport.Snapshot snapshot = FreezeReport.read(DiagnosticsPanel.logFile(this), 256 * 1024);
+        if (snapshot.surfaceDead()) {
+            new AlertDialog.Builder(this)
+                    .setTitle("A surface Vulkan morreu")
+                    .setMessage("O motor não consegue recriar a surface, então a tela fica preta "
+                            + "para sempre. A única saída é reabrir o jogo.\n\n"
+                            + "O que estiver em andamento (uma corrida) se perde.")
+                    .setPositiveButton("Reabrir o jogo", (dialog, which) -> relaunchGame(this))
+                    .setNegativeButton("Cancelar", null)
+                    .show();
+            return;
+        }
         // recreate() nao serve: o motor encerra o processo ao fechar a janela
         // ("Title terminated; hard-exiting process") e o usuario cai no launcher.
         // O que resolve e recriar a SURFACE, e o mesmo truque de "sair e voltar":
@@ -446,6 +463,26 @@ public final class GameActivity extends SDLActivity
         } catch (RuntimeException error) {
             Log.w(TAG, "recover", error);
         }
+    }
+
+    /**
+     * Mata o processo e relanca o jogo: e a unica saida de uma surface Vulkan
+     * morta (o motor nao recria a surface, a tela fica preta para sempre).
+     * O relancamento e pedido ao sistema antes de matar o processo, entao o
+     * jogo volta sozinho em um processo novo.
+     */
+    static void relaunchGame(Activity from) {
+        try {
+            Intent launch = new Intent(from, GameActivity.class);
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            PendingIntent relaunch = PendingIntent.getActivity(from, 0, launch,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            relaunch.send();
+        } catch (PendingIntent.CanceledException | RuntimeException error) {
+            Log.w(TAG, "relaunch", error);
+        }
+        from.finishAffinity();
+        Runtime.getRuntime().exit(0);
     }
 
     /**

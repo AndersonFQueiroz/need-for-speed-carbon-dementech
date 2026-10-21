@@ -53,6 +53,11 @@ final class DiagnosticsPanel extends LinearLayout {
         if (!snapshot.readable) {
             verdict.setText("SEM LOG");
             verdict.setTextColor(Ui.CHROME_DIM);
+        } else if (snapshot.surfaceDead()) {
+            verdict.setText("☠ A SURFACE VULKAN MORREU — o motor tentou recriá-la e falhou. "
+                    + "A tela preta é esperada e não se recupera: use “Reabrir o jogo” "
+                    + "(reinicia o app; o que estiver em andamento se perde).");
+            verdict.setTextColor(Ui.WARNING);
         } else if (snapshot.suspect()) {
             verdict.setText("⚠ O MOTOR PAROU DE ENTREGAR QUADRO (imagem e áudio podem travar junto)");
             verdict.setTextColor(Ui.WARNING);

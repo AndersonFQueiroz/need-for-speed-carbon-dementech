@@ -295,6 +295,10 @@ public final class MainActivity extends Activity {
         recoverParams.leftMargin = Ui.dp(this, 8);
         freezeActions.addView(Ui.ghostButton(this, "Reiniciar renderização", ignored -> recoverRendering()),
                 recoverParams);
+        LinearLayout.LayoutParams relaunchParams = new LinearLayout.LayoutParams(0, -1, 1);
+        relaunchParams.leftMargin = Ui.dp(this, 8);
+        freezeActions.addView(Ui.ghostButton(this, "Reabrir o jogo", ignored -> confirmRelaunchGame()),
+                relaunchParams);
 
         diagnosticsList.addView(Ui.divider(this));
         diagnosticsList.addView(Ui.section(this, "Perfis de desempenho"));
@@ -332,6 +336,14 @@ public final class MainActivity extends Activity {
 
     /** Reinicia a renderizacao: fecha o jogo e volta a rodar. */
     private void recoverRendering() {
+        // Surface Vulkan morta: o CLEAR_TOP nao resolve (o motor mata o processo
+        // ao fechar a janela e o jogo nem chega a reabrir). Nesse caso so
+        // matar o processo e relancar resolve.
+        FreezeReport.Snapshot snapshot = FreezeReport.read(DiagnosticsPanel.logFile(this), 256 * 1024);
+        if (snapshot.surfaceDead()) {
+            confirmRelaunchGame();
+            return;
+        }
         new AlertDialog.Builder(this)
                 .setTitle("Reiniciar renderização")
                 .setMessage("O jogo será fechado e aberto de novo. Use quando a imagem travar; "
@@ -344,6 +356,18 @@ public final class MainActivity extends Activity {
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                     startActivity(intent);
                 })
+                .setNegativeButton("Cancelar", null).show();
+    }
+
+    /** Reabre o jogo do zero (mata o processo): saida de surface Vulkan morta. */
+    private void confirmRelaunchGame() {
+        new AlertDialog.Builder(this)
+                .setTitle("Reabrir o jogo")
+                .setMessage("O jogo será fechado e aberto de novo do zero.\n\n"
+                        + "É a solução quando a tela fica preta: o motor não conseguiu recriar a "
+                        + "surface e não se recupera sem matar o processo.\n\n"
+                        + "O que estiver em andamento (uma corrida) se perde.")
+                .setPositiveButton("Reabrir", (dialog, which) -> GameActivity.relaunchGame(this))
                 .setNegativeButton("Cancelar", null).show();
     }
 

@@ -31,6 +31,9 @@ final class FreezeReport {
         double lastFrameMs;            // ultimo tempo de quadro registrado
         double presentedFps;           // quadros entregues por segundo (janela)
         int dropped;                   // apresentacoes descartadas (swapchain desatualizado)
+        int surfaceFails;              // vezes que o motor nao criou a surface/swapchain
+        int submitFails;               // vezes que o motor nao conseguiu submeter os buffers
+        int swapchainRebuilds;         // recriacoes de swapchain (laco de reconstrucao)
         double swapsPerSecond;         // ritmo real de entrega de quadro (histograma do motor)
         int slowFrames;                // quadros acima de 60 ms na ultima janela
         double worstFrameMs;           // pior quadro da ultima janela
@@ -46,6 +49,14 @@ final class FreezeReport {
 
         boolean suspect() {
             return readable && stalledSeconds() >= 20;
+        }
+
+        /**
+         * A surface Vulkan morreu: o motor tentou recria-la e falhou. Nao ha
+         * como recuperar a imagem sem matar o processo (a tela fica preta).
+         */
+        boolean surfaceDead() {
+            return readable && surfaceFails > 0;
         }
     }
 
@@ -95,6 +106,9 @@ final class FreezeReport {
         long lastStamp = 0;
         double frame = 0;
         int dropped = 0;
+        int surfaceFails = 0;
+        int submitFails = 0;
+        int rebuilds = 0;
         for (String line : tail.split("\n")) {
             long stamp = timestamp(line);
             if (stamp > 0) lastStamp = stamp;
@@ -118,6 +132,10 @@ final class FreezeReport {
                 }
             }
             if (line.contains("Presentation to the swapchain image has been dropped")) dropped++;
+            if (line.contains("Failed to create a Vulkan surface")
+                    || line.contains("Failed to create a swapchain")) surfaceFails++;
+            if (line.contains("Failed to submit command buffers")) submitFails++;
+            if (line.contains("swapchain with format")) rebuilds++;
             at = line.indexOf("intervalos entre Swaps: ");
             if (at >= 0) {
                 int end = line.indexOf("; peor fotograma ", at);
@@ -154,6 +172,9 @@ final class FreezeReport {
         }
         snapshot.lastFrameMs = frame;
         snapshot.dropped = dropped;
+        snapshot.surfaceFails = surfaceFails;
+        snapshot.submitFails = submitFails;
+        snapshot.swapchainRebuilds = rebuilds;
         snapshot.slowFrames = lastSlow;
         snapshot.worstFrameMs = lastWorst;
         if (lastSwaps > 0 && presented.size() >= 2) {
@@ -210,6 +231,13 @@ final class FreezeReport {
                     snapshot.slowFrames, snapshot.worstFrameMs));
         }
         text.append(String.format(Locale.US, "Apresentações descartadas: %d%n", snapshot.dropped));
+        if (snapshot.surfaceDead()) {
+            text.append(String.format(Locale.US,
+                    "☠ SURFACE VULKAN MORREU: %d falhas ao criar a surface/swapchain "
+                            + "(%d buffers rejeitados, %d recriações de swapchain).%n",
+                    snapshot.surfaceFails, snapshot.submitFails, snapshot.swapchainRebuilds));
+            text.append("A tela preta NÃO se recupera: só reabrindo o jogo.\n");
+        }
         text.append(String.format(Locale.US, "Log: %.1f MB%n", snapshot.bytes / 1e6));
         if (snapshot.suspect()) {
             text.append(String.format(Locale.US, "⚠ Sem apresentação há %d s — imagem provavelmente travada.",
