@@ -47,7 +47,8 @@ final class DiagnosticsPanel extends LinearLayout {
 
     /** Relê o log e atualiza os textos. */
     void refresh() {
-        FreezeReport.Snapshot snapshot = FreezeReport.read(logFile(getContext()), 96 * 1024);
+        // 64 KB: pega o histograma de swaps (a cada ~20 s) sem pesar na UI.
+        FreezeReport.Snapshot snapshot = FreezeReport.read(logFile(getContext()), 64 * 1024);
         reading.setText(FreezeReport.describe(snapshot));
         if (!snapshot.readable) {
             verdict.setText("SEM LOG");

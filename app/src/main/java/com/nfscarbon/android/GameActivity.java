@@ -67,10 +67,12 @@ public final class GameActivity extends SDLActivity
     private TextView fpsLabel;
     private final Handler frameHandler = new Handler(Looper.getMainLooper());
     // Vigia de congelamento (Dementech): observa o contador de apresentacao do motor
-    // e avisa quando a imagem para de avancar.
-    private final Handler watchdogHandler = new Handler(Looper.getMainLooper());
-    private long lastPresented = -1;
-    private long lastProgressAt;
+    // e avisa quando a imagem para de avancar. Roda numa THREAD DEDICADA: nem a
+    // leitura do log nem o parse passam pela thread da UI.
+    private final android.os.HandlerThread watchdogThread = new android.os.HandlerThread("dementech-watchdog");
+    private Handler watchdogHandler;
+    private volatile long lastPresented = -1;
+    private volatile long lastProgressAt;
     private long lastStallSeconds;
     private long lastStallAt;
     private final Runnable watchdogTick = new Runnable() {
@@ -200,6 +202,10 @@ public final class GameActivity extends SDLActivity
         }
         updateTiltListener();
         applyStretch(controls.stretch);
+        if (watchdogHandler == null) {
+            watchdogThread.start();
+            watchdogHandler = new Handler(watchdogThread.getLooper());
+        }
         lastPresented = -1;
         lastProgressAt = System.currentTimeMillis();
         watchdogHandler.removeCallbacks(watchdogTick);
@@ -215,9 +221,16 @@ public final class GameActivity extends SDLActivity
     }
 
     @Override
+    protected void onDestroy() {
+        if (watchdogHandler != null) watchdogHandler.removeCallbacks(watchdogTick);
+        watchdogThread.quitSafely();
+        super.onDestroy();
+    }
+
+    @Override
     protected void onPause() {
         frameHandler.removeCallbacks(updateFrames);
-        watchdogHandler.removeCallbacks(watchdogTick);
+        if (watchdogHandler != null) watchdogHandler.removeCallbacks(watchdogTick);
         if (inputManager != null) {
             inputManager.unregisterInputDeviceListener(this);
         }
@@ -422,7 +435,8 @@ public final class GameActivity extends SDLActivity
         try {
             java.io.File log = DiagnosticsPanel.logFile(this);
             if (log == null || !log.isFile()) return;
-            FreezeReport.Snapshot snapshot = FreezeReport.read(log, 96 * 1024);
+            // 48 KB bastam: o contador de apresentacao do motor vem a cada ~10 s.
+            FreezeReport.Snapshot snapshot = FreezeReport.read(log, 48 * 1024);
             if (!snapshot.readable || snapshot.presented <= 0) return;
             long now = System.currentTimeMillis();
             if (lastPresented < 0) {
