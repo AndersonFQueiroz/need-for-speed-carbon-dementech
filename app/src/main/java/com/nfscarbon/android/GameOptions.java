@@ -56,7 +56,7 @@ final class GameOptions {
         // 6 GB: o driver (Turnip/KGSL) perde o device (VK_ERROR_DEVICE_LOST) e a
         // imagem trava. Abaixar o teto mantem o uso de memoria da GPU longe do
         // limite, ao custo de mais eviccao de textura.
-        new Option("texture_memory", "Memória de texturas", "nfsmw_nativo_texturas_mb_max", "384",
+        new Option("texture_memory", "Memória de texturas", "nfsmw_nativo_texturas_mb_max", "192",
             new String[]{"384", "256", "192", "128"},
             new String[]{"384 MB · padrão do motor", "256 MB", "192 MB · recomendado em 6 GB",
                 "128 MB · máxima segurança"}),

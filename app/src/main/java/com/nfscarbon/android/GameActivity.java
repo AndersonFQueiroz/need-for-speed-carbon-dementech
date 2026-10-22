@@ -515,17 +515,21 @@ public final class GameActivity extends SDLActivity
             }
             long idle = (now - lastProgressAt) / 1000;
             long quiet = (now - log.lastModified()) / 1000;
-            // Device Vulkan morto no driver (Turnip/KGSL): ninguem desenha mais,
-            // renovar a surface nao adianta (e piora: o motor fica recriando a
-            // swapchain sem parar). Fica registrado para o diagnostico.
+            // Device Vulkan morto no driver (Turnip/KGSL): ninguem desenha mais.
+            // Nem renovar a surface adianta (o motor ja parou de recriar a
+            // swapchain depois do patch). A saida e um processo novo, com device
+            // novo: o app se relanca sozinho.
             if (snapshot.gpuLost()) {
                 if (!gpuLostNoted) {
                     gpuLostNoted = true;
                     recordStall(idle);
+                    Log.w(TAG, "device Vulkan perdido: relancando o jogo");
+                    relaunchGame(this);
                 }
                 return;
             }
             if (idle >= 20 && quiet <= 15) {
+
                 recordStall(idle);
                 renewStuckSurface(now);
             }
