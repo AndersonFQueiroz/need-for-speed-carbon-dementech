@@ -551,6 +551,34 @@ public final class MainActivity extends Activity {
                 .setNegativeButton("Voltar", null).show();
     }
 
+    /**
+     * Troca o driver e ajusta o renderizador se o novo driver nao tem os recursos que o
+     * renderizador nativo exige. Sem isso, escolher "Do sistema" num aparelho com Vulkan 1.1
+     * (sem VK_EXT_descriptor_indexing) deixaria o jogo sem poder iniciar.
+     */
+    private void selectDriver(String id) {
+        GpuDrivers.select(this, id);
+        if (!"nativo".equals(GameOptions.get(this, GameOptions.RENDERER.key))) {
+            refreshOptions();
+            return;
+        }
+        org.json.JSONObject gpu = Diagnostics.gpu(this);
+        boolean compatible = gpu.optBoolean("compatible");
+        boolean probed = gpu.has("compatible");
+        if (probed && !compatible) {
+            // O renderizador nativo precisa de descriptor indexing; o Xenos emula a GPU do
+            // console e funciona sem isso.
+            GameOptions.set(this, GameOptions.RENDERER.key, "xenos");
+            new AlertDialog.Builder(this).setTitle("Renderizador ajustado")
+                .setMessage("Este driver não tem os recursos que o renderizador nativo exige "
+                    + "(VK_EXT_descriptor_indexing). O renderizador foi trocado para Xenos, "
+                    + "que emula a GPU do console e roda em qualquer Vulkan 1.1 — mais lento, "
+                    + "mas estável.")
+                .setPositiveButton("Ok", null).show();
+        }
+        refreshOptions();
+    }
+
     private void probeDriver(boolean playAfter) {
         if (busy) return;
         busy = true;
@@ -576,7 +604,7 @@ public final class MainActivity extends Activity {
                     .setTitle("Teste do driver Vulkan").setMessage(text)
                     .setPositiveButton("Ok", null)
                     .setNeutralButton("Usar o do sistema", (dialog, which) -> {
-                        GpuDrivers.select(this, ""); refreshOptions();
+                        selectDriver("");
                     }).show();
         } catch (Exception error) { playAfterProbe = false; reportError("Diagnóstico inválido: " + error.getMessage()); }
     }
