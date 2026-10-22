@@ -55,15 +55,20 @@ final class GpuDrivers {
      * somente-leitura) e aponta para a biblioteca.
      */
     private static void ensureAlias(File packageDir, File loadDir, String library) {
-        File alias = new File(packageDir, "0_patched.so");
+        File alias = new File(loadDir, "0_patched.so");
         if (alias.exists()) return;
         File source = new File(loadDir, library);
+        boolean writable = loadDir.canWrite();
         try {
+            // A pasta do pacote e marcada como somente-leitura:Unlock para criar o alias.
+            if (!writable) loadDir.setWritable(true);
             Files.createSymbolicLink(alias.toPath(), source.getAbsoluteFile().toPath());
         } catch (Exception ignored) {
             try {
                 Files.copy(source.toPath(), alias.toPath());
             } catch (Exception ignoredToo) { }
+        } finally {
+            if (!writable) loadDir.setWritable(false);
         }
     }
     static String selectedId(Context context) {
@@ -146,8 +151,8 @@ final class GpuDrivers {
         Driver driver = selected(context);
         args.add("--android_native_lib_dir=" + context.getApplicationInfo().nativeLibraryDir);
         args.add("--android_tmp_dir=" + context.getCacheDir().getAbsolutePath());
-        // O motor precisa do diretorio que contem o alias "<N>_patched.so" (raiz do pacote).
-        args.add("--android_gpu_driver_dir=" + (driver == null ? "" : driver.directory.getParentFile().getAbsolutePath() + "/"));
+        // O motor pede "<dir>/<libraryName>" ao carregador de Vulkan.
+        args.add("--android_gpu_driver_dir=" + (driver == null ? "" : driver.directory.getAbsolutePath() + "/"));
         args.add("--android_gpu_driver_name=" + (driver == null ? "" : driver.library));
     }
 }
