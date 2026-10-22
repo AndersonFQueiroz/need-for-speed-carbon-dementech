@@ -232,6 +232,25 @@ sistema antes do `exit(0)`, então volta sozinho em um processo novo). Implement
 no alpha.2: o painel de diagnóstico passa a avisar que a tela preta é esperada
 e oferece **"Reabrir o jogo"**.
 
+### 5.3 O patch do motor (nosso, sem depender de ninguem) — 21/10
+
+O presenter do ReXGlue (SDK público, BSD-3) trata `VK_ERROR_DEVICE_LOST` nos caminhos de
+aquisicao e de apresentacao, mas **nao** no de submissao: ali ele devolve
+`kNotPresentedConnectionOutdated` e o motor fica recriando a swapchain (1.343 recriacoes em
+6 min) ate a surface nao poder mais ser criada (tela preta, CPU em 100 %).
+
+`tools/patch_engine.py` aplica no `librexruntime.so` que o app shipa o equivalente da
+correcao de 3 linhas do fonte: um *code cave* de 8 bytes num trecho de zeros do `.text`
+(`mov w21, #5` + `b <epilogue>`) e o branch do bloco de falha do submit passa a cair nele.
+Com isso, a perda do device e reportada ao host em vez de virar laço de reconstrucao.
+
+```
+python3 tools/patch_engine.py      # aplica no app/src/main/jniLibs/arm64-v8a/librexruntime.so
+```
+
+O script confere os bytes esperados e a assinatura do presenter antes de patchear e
+recusa se o binario for diferente do pinado (SHA256 em `tools/fetch_engine.sh`).
+
 ## 6. Hipóteses (e como testar cada uma)
 
 | # | Hipótese | Teste | Ferramenta |
