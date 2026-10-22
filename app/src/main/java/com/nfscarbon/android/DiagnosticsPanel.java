@@ -24,7 +24,6 @@ import java.io.File;
 final class DiagnosticsPanel extends LinearLayout {
     private final TextView reading;
     private final TextView verdict;
-    private final TextView lastStall;
 
     DiagnosticsPanel(Context context) {
         super(context);
@@ -35,9 +34,6 @@ final class DiagnosticsPanel extends LinearLayout {
         verdict = Ui.text(context, "", 11, Ui.CHROME_DIM, true, 0.08f);
         verdict.setPadding(0, Ui.dp(context, 8), 0, 0);
         addView(verdict, Ui.matchWrap());
-        lastStall = Ui.label(context, "", 11, Ui.WARNING);
-        lastStall.setPadding(0, Ui.dp(context, 6), 0, 0);
-        addView(lastStall, Ui.matchWrap());
     }
 
     /** Arquivo de log que o motor está escrevendo agora. */
@@ -66,47 +62,10 @@ final class DiagnosticsPanel extends LinearLayout {
                     + "o problema é na surface/display: use “Reiniciar renderização”");
             verdict.setTextColor(Ui.OK);
         }
-        long seconds = lastStallSeconds(getContext());
-        long at = lastStallAt(getContext());
-        if (seconds > 0) {
-            java.text.SimpleDateFormat stamp = new java.text.SimpleDateFormat("dd/MM HH:mm:ss", java.util.Locale.US);
-            StringBuilder line = new StringBuilder("Última travada detectada: " + seconds + " s às " + stamp.format(new java.util.Date(at)));
-            lastStall.setText(line.toString());
-            lastStall.setVisibility(View.VISIBLE);
-        } else {
-            lastStall.setVisibility(View.GONE);
-        }
     }
 
-    /** Registra a travada detectada (fica visivel no launcher e no jogo). */
-    static void recordStall(Context context, long seconds, long atMillis) {
-        context.getSharedPreferences("nfscarbon_game", Context.MODE_PRIVATE).edit()
-                .putLong("last_stall_seconds", seconds)
-                .putLong("last_stall_at", atMillis)
-                .apply();
-    }
 
-    /** Segundos da ultima travada registrada (0 se nunca houve). */
-    static long lastStallSeconds(Context context) {
-        return context.getSharedPreferences("nfscarbon_game", Context.MODE_PRIVATE)
-                .getLong("last_stall_seconds", 0);
-    }
 
-    /** Instante da ultima travada registrada (0 se nunca houve). */
-    static long lastStallAt(Context context) {
-        return context.getSharedPreferences("nfscarbon_game", Context.MODE_PRIVATE)
-                .getLong("last_stall_at", 0);
-    }
 
-    /**
-     * Quantas vezes o app renovou a surface sozinho porque a imagem parou
-     * (o motor continua vivo). Cada renovacao devolve a imagem sem reiniciar
-     * o jogo nem o save.
-     */
-    static void recordAutoRecovery(Context context, int count) {
-        context.getSharedPreferences("nfscarbon_game", Context.MODE_PRIVATE).edit()
-                .putInt("auto_recoveries", count)
-                .apply();
-    }
 
 }

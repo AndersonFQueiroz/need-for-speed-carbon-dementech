@@ -71,23 +71,9 @@ public final class GameActivity extends SDLActivity
     private Sensor gravity;
     private TextView fpsLabel;
     private final Handler frameHandler = new Handler(Looper.getMainLooper());
-    // Vigia de congelamento (Dementech): observa o contador de apresentacao do motor
-    // e avisa quando a imagem para de avancar. Roda numa THREAD DEDICADA: nem a
-    // leitura do log nem o parse passam pela thread da UI.
-    private final android.os.HandlerThread watchdogThread = new android.os.HandlerThread("dementech-watchdog");
-    private Handler watchdogHandler;
-    private volatile long lastPresented = -1;
-    private volatile long lastProgressAt;
-    private long lastStallSeconds;
-    private long lastStallAt;
-    private boolean gpuLostNoted;
-    private final Runnable watchdogTick = new Runnable() {
-        @Override public void run() {
-            if (isFinishing()) return;
-            checkPresentation();
-            watchdogHandler.postDelayed(this, 5000);
-        }
-    };
+    // Sem vigia em segundo plano (decisao do dono, 22/10): o app nao age sozinho
+    // -- nao renova a surface e nao relanca o jogo. Quem olha o log do motor e o
+    // painel de diagnostico, quando aberto.
     private final Runnable updateFrames = new Runnable() {
         @Override public void run() {
             if (fpsLabel == null || isFinishing()) return;
@@ -209,14 +195,6 @@ public final class GameActivity extends SDLActivity
         }
         updateTiltListener();
         applyStretch(controls.stretch);
-        if (watchdogHandler == null) {
-            watchdogThread.start();
-            watchdogHandler = new Handler(watchdogThread.getLooper());
-        }
-        lastPresented = -1;
-        lastProgressAt = System.currentTimeMillis();
-        watchdogHandler.removeCallbacks(watchdogTick);
-        watchdogHandler.postDelayed(watchdogTick, 5000);
     }
 
     private static void applyStretch(boolean stretch) {
@@ -230,15 +208,12 @@ public final class GameActivity extends SDLActivity
     @Override
     protected void onDestroy() {
         isRunning = false;
-        if (watchdogHandler != null) watchdogHandler.removeCallbacks(watchdogTick);
-        watchdogThread.quitSafely();
         super.onDestroy();
     }
 
     @Override
     protected void onPause() {
         frameHandler.removeCallbacks(updateFrames);
-        if (watchdogHandler != null) watchdogHandler.removeCallbacks(watchdogTick);
         if (inputManager != null) {
             inputManager.unregisterInputDeviceListener(this);
         }
@@ -486,64 +461,6 @@ public final class GameActivity extends SDLActivity
         Runtime.getRuntime().exit(0);
     }
 
-    /**
-     * Le o contador de quadros apresentados pelo motor. Se o log continua sendo
-     * escrito (motor vivo) mas o contador nao avanca, a imagem esta travada.
-     */
-    private void checkPresentation() {
-        try {
-            java.io.File log = DiagnosticsPanel.logFile(this);
-            if (log == null || !log.isFile()) return;
-            // 48 KB bastam: o contador de apresentacao do motor vem a cada ~10 s.
-            FreezeReport.Snapshot snapshot = FreezeReport.read(log, 48 * 1024);
-            if (!snapshot.readable || snapshot.presented <= 0) return;
-            long now = System.currentTimeMillis();
-            if (lastPresented < 0) {
-                lastPresented = snapshot.presented;
-                lastProgressAt = now;
-                return;
-            }
-            if (snapshot.presented != lastPresented) {
-                lastPresented = snapshot.presented;
-                lastProgressAt = now;
-                return;
-            }
-            long idle = (now - lastProgressAt) / 1000;
-            long quiet = (now - log.lastModified()) / 1000;
-            // Device Vulkan morto no driver (Turnip/KGSL): ninguem desenha mais.
-            // Nem renovar a surface adianta (o motor ja parou de recriar a
-            // swapchain depois do patch). A saida e um processo novo, com device
-            // novo: o app se relanca sozinho.
-            if (snapshot.gpuLost()) {
-                if (!gpuLostNoted) {
-                    gpuLostNoted = true;
-                    recordStall(idle);
-                    Log.w(TAG, "device Vulkan perdido: relancando o jogo");
-                    relaunchGame(this);
-                }
-                return;
-            }
-            if (idle >= 20 && quiet <= 15) {
-                // A imagem parou com o motor vivo. A antiga renovacao de surface
-                // (moveTaskToBack + 700 ms) minimizava a tela do dono a cada
-                // deteccao e nao corrigia congelamento nenhum: foi removida a
-                // pedido dele. Aqui so registramos a travada para o diagnostico.
-                recordStall(idle);
-            }
-        } catch (RuntimeException error) {
-            Log.w(TAG, "watchdog", error);
-        }
-    }
-
-
-    /** Registra a travada (sem mostrar nada na tela) para o diagnostico. */
-    private void recordStall(long idleSeconds) {
-        if (lastStallSeconds == idleSeconds) return;
-        lastStallSeconds = idleSeconds;
-        lastStallAt = System.currentTimeMillis();
-        DiagnosticsPanel.recordStall(this, idleSeconds, lastStallAt);
-        Log.w(TAG, "apresentacao parada ha " + idleSeconds + " s");
-    }
 
     private LinearLayout buildToolbar() {
         LinearLayout bar = new LinearLayout(this);
