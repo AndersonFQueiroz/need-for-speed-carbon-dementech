@@ -80,11 +80,6 @@ public final class GameActivity extends SDLActivity
     private volatile long lastProgressAt;
     private long lastStallSeconds;
     private long lastStallAt;
-    // Renovacao automatica da surface quando a imagem para (sem reiniciar o jogo).
-    private static final int MAX_AUTO_RECOVERIES = 6;
-    private static final long AUTO_RECOVERY_COOLDOWN_MS = 45000;
-    private int autoRecoveries;
-    private long lastAutoRecoveryAt;
     private boolean gpuLostNoted;
     private final Runnable watchdogTick = new Runnable() {
         @Override public void run() {
@@ -529,50 +524,17 @@ public final class GameActivity extends SDLActivity
                 return;
             }
             if (idle >= 20 && quiet <= 15) {
-
+                // A imagem parou com o motor vivo. A antiga renovacao de surface
+                // (moveTaskToBack + 700 ms) minimizava a tela do dono a cada
+                // deteccao e nao corrigia congelamento nenhum: foi removida a
+                // pedido dele. Aqui so registramos a travada para o diagnostico.
                 recordStall(idle);
-                renewStuckSurface(now);
             }
         } catch (RuntimeException error) {
             Log.w(TAG, "watchdog", error);
         }
     }
 
-    /**
-     * A imagem parou mas o motor esta vivo (a surface ficou velha): renova a
-     * surface — o motor recria a swapchain e a imagem volta. O jogo NAO e
-     * reiniciado (o save e a partida continuam), entao nao se perde progresso.
-     *
-     * Com o device Vulkan morto isso nao adianta, por isso o watchdog nao
-     * chama este caminho quando o log acusa a perda do device.
-     */
-    private void renewStuckSurface(long now) {
-        if (autoRecoveries >= MAX_AUTO_RECOVERIES) return;
-        if (now - lastAutoRecoveryAt < AUTO_RECOVERY_COOLDOWN_MS) return;
-        autoRecoveries++;
-        lastAutoRecoveryAt = now;
-        lastPresented = -1;   // o contador de apresentacao reinicia com a surface nova
-        lastProgressAt = now;
-        Log.i(TAG, "imagem parada: renovando a surface (" + autoRecoveries + ")");
-        DiagnosticsPanel.recordAutoRecovery(this, autoRecoveries);
-        frameHandler.post(() -> {
-            try {
-                moveTaskToBack(true);
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    Intent bring = new Intent(this, GameActivity.class);
-                    bring.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-                            | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                    try {
-                        startActivity(bring);
-                    } catch (RuntimeException error) {
-                        Log.w(TAG, "watchdog", error);
-                    }
-                }, 700);
-            } catch (RuntimeException error) {
-                Log.w(TAG, "watchdog", error);
-            }
-        });
-    }
 
     /** Registra a travada (sem mostrar nada na tela) para o diagnostico. */
     private void recordStall(long idleSeconds) {

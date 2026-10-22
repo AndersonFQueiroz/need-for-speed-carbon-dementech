@@ -449,6 +449,33 @@ métrica do A/B (com o perfil Estável, o esperado é **0**).
 
 ## 10. O que falta (alpha.2 em diante)
 
+### 10.1 Resolvido em 22/10: era o **ritmo alvo**, não a resolução
+
+Medido pelo dono (e confirmado pelo log com `tools/bench_session.py`):
+
+| sessão | fps | mortes do device |
+|---|---|---|
+| 21:54–22:10 | 60 | 1 |
+| 23:06–23:16 | 60 | 1 |
+| 01:01–01:27 (perfil Estável) | 60 | 1 |
+| **02:47–03:16 (1280×720)** | **30** | **0** (28,5 min sem congelar) |
+
+O orçamento de 16,7 ms por quadro a 60 fps não fecha numa GPU de 6 GB (Adreno 650): a GPU fica
+orçada para fora, o KGSL mata o device. A 30 fps sobra tempo e o jogo fica estável **na
+resolução máxima**.
+
+Consequências no app (alpha.6, 22/10 03:23):
+
+- **FPS padrão 30** (era 60) e perfil **"Estável"** = 1280×720 + 30 fps + atalhos do MW + 192 MB.
+- **Removida a renovação automática de surface** (`moveTaskToBack` + 700 ms): minimizava a tela
+  do dono a cada detecção e não corrigia congelamento nenhum (falso positivo do vigia). O vigia
+  agora só *registra* a travada no diagnóstico, sem interferir na tela.
+- Fica no app apenas o que não mexe na tela: o **relançamento automático** do device morto
+  (sem ele a tela ficaria preta para sempre), o contador de FPS (só com o overlay ligado) e o
+  diagnóstico (só quando aberto).
+
+### 10.2 O que ainda falta
+
 1. **Recuperação automática**: a vigia já detecta e registra a travada; falta
    resolver sozinho (hoje exige o toque do usuário em "Reiniciar renderização").
 2. **Aplicar `log_level=warn` por padrão** (medir o ganho de I/O).

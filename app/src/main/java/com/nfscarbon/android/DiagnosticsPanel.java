@@ -68,14 +68,9 @@ final class DiagnosticsPanel extends LinearLayout {
         }
         long seconds = lastStallSeconds(getContext());
         long at = lastStallAt(getContext());
-        int recoveries = autoRecoveries(getContext());
         if (seconds > 0) {
             java.text.SimpleDateFormat stamp = new java.text.SimpleDateFormat("dd/MM HH:mm:ss", java.util.Locale.US);
             StringBuilder line = new StringBuilder("Última travada detectada: " + seconds + " s às " + stamp.format(new java.util.Date(at)));
-            if (recoveries > 0) {
-                line.append(" · ").append(recoveries)
-                        .append(recoveries == 1 ? " renovação automática da surface" : " renovações automáticas da surface");
-            }
             lastStall.setText(line.toString());
             lastStall.setVisibility(View.VISIBLE);
         } else {
@@ -114,9 +109,4 @@ final class DiagnosticsPanel extends LinearLayout {
                 .apply();
     }
 
-    /** Renovacoes automaticas da surface nesta sessao do jogo. */
-    static int autoRecoveries(Context context) {
-        return context.getSharedPreferences("nfscarbon_game", Context.MODE_PRIVATE)
-                .getInt("auto_recoveries", 0);
-    }
 }

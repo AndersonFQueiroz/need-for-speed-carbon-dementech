@@ -63,8 +63,8 @@ final class GameOptions {
     // O que cada perfil mexe. O resto das opcoes continua livre.
     private static final String[][] PROFILE_VALUES_BY_KEY = {
         {"native_shortcuts", "off", "on", "on"},
-        {"resolution", "1024x576", "1024x576", "640x360"},
-        {"fps", "60", "60", "30"},
+        {"resolution", "1024x576", "1280x720", "640x360"},
+        {"fps", "30", "30", "30"},
         {"texture_memory", "192", "192", "128"},
     };
 
@@ -113,7 +113,7 @@ final class GameOptions {
             new String[]{"384", "256", "192", "128"},
             new String[]{"384 MB · padrão do motor", "256 MB", "192 MB · recomendado em 6 GB",
                 "128 MB · máxima segurança"}),
-        new Option("fps", "Ritmo alvo (FPS)", null, "60",
+        new Option("fps", "Ritmo alvo (FPS)", null, "30",
             new String[]{"30", "60", "90", "120", "unlimited"},
             new String[]{"30 FPS", "60 FPS", "90 FPS · experimental", "120 FPS · experimental", "Sem limite · experimental"}),
         new Option("single_pass", "Antialiasing da cena", "carbon_single_pass", "true",
