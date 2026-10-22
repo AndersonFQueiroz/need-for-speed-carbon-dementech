@@ -35,6 +35,7 @@ final class FreezeReport {
         int submitFails;               // vezes que o motor nao conseguiu submeter os buffers
         int swapchainRebuilds;         // recriacoes de swapchain (laco de reconstrucao)
         int deviceLost;                // vezes que o device Vulkan morreu (driver)
+        long sessionSeconds;           // duracao da sessao atual (do log)
         double swapsPerSecond;         // ritmo real de entrega de quadro (histograma do motor)
         int slowFrames;                // quadros acima de 60 ms na ultima janela
         double worstFrameMs;           // pior quadro da ultima janela
@@ -119,9 +120,13 @@ final class FreezeReport {
         int submitFails = 0;
         int rebuilds = 0;
         int lost = 0;
+        long firstStamp = 0;
         for (String line : tail.split("\n")) {
             long stamp = timestamp(line);
-            if (stamp > 0) lastStamp = stamp;
+            if (stamp > 0) {
+                if (firstStamp == 0) firstStamp = stamp;
+                lastStamp = stamp;
+            }
             int at = line.indexOf("adquisicion anticipada:");
             if (at >= 0) {
                 int open = line.indexOf("de ", at);
@@ -191,6 +196,10 @@ final class FreezeReport {
         snapshot.submitFails = submitFails;
         snapshot.swapchainRebuilds = rebuilds;
         snapshot.deviceLost = lost;
+        // Duracao observada no log (o log e rotacionado, entao e o piso da sessao).
+        if (firstStamp > 0 && lastStamp > firstStamp) {
+            snapshot.sessionSeconds = (lastStamp - firstStamp) / 1000;
+        }
         snapshot.slowFrames = lastSlow;
         snapshot.worstFrameMs = lastWorst;
         if (lastSwaps > 0 && presented.size() >= 2) {
@@ -258,6 +267,15 @@ final class FreezeReport {
             text.append(String.format(Locale.US,
                     "☠ DEVICE VULKAN PERDIDO (%d): o driver (Turnip/KGSL) morreu. "
                             + "A imagem não volta sem recriar o device.%n", snapshot.deviceLost));
+        }
+        // Metrica do A/B do perfil de GPU: quantas vezes o device morreu e ha quanto
+        // tempo a sessao roda sem isso. Com o perfil "Estavel" (atalhos do MW) o
+        // esperado e zero: a GPU para de trabalhar demais e o driver para de matar
+        // o device.
+        if (snapshot.sessionSeconds > 0) {
+            text.append(String.format(Locale.US, "Sessão: %d min · mortes do device: %d%s%n",
+                    snapshot.sessionSeconds / 60, snapshot.deviceLost,
+                    snapshot.deviceLost == 0 ? " ✓" : ""));
         }
         text.append(String.format(Locale.US, "Log: %.1f MB%n", snapshot.bytes / 1e6));
         if (snapshot.suspect()) {

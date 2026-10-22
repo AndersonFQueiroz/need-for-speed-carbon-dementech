@@ -320,7 +320,134 @@ na linha de comando, e por isso **não exigem recompilar nada**:
   congelamento aparece depois de um tempo de jogo nos dois, então o que
   resolve é a vigia, não o fps.
 
-## 9. O que falta (alpha.2 em diante)
+## 9. O rebuild do motor: o que custaria e o que renderia (21/10)
+
+O dono perguntou se rebuildar o motor (o SDK) resolveria o congelamento. **A resposta
+curta: não resolve a causa, e é caro.** A longa, com o que foi verificado no código-fonte
+público:
+
+### 9.1 O bug é do SDK, e é pequeno
+
+No `rexglue/rexglue-sdk` (público, BSD-3) o presenter trata `VK_ERROR_DEVICE_LOST` de
+forma desigual:
+
+| caminho do presenter | resposta |
+|---|---|
+| aquisição da imagem (`vulkan_presenter.cpp:1579`) | `PaintResult::kGpuLostResponsible` ✅ |
+| apresentação (`vulkan_presenter.cpp:2250`) | `PaintResult::kGpuLostResponsible` ✅ |
+| **submissão** (`vulkan_presenter.cpp:2210`) | `PaintResult::kNotPresentedConnectionOutdated` ❌ **← o bug** |
+
+No caminho do *submit*, a perda do device é tratada como "a surface ficou velha": o presenter
+fica recriando a swapchain sem parar (190 recriações em 5 s no aparelho) até
+`Failed to create a Vulkan surface` — tela preta para sempre e CPU em 100 %.
+
+O `mov w21, #5` do nosso binpatch (`tools/patch_engine.py`) é **exatamente** o
+`kGpuLostResponsible` (valor 5) que o upstream usaria nesse ponto. Ou seja: **o patch em
+binário já equivale ao conserto em código-fonte**, sem rebuild nenhum. O upstream já tem o
+resto do tratamento (`command_processor.cpp` marca `device_lost_` e chama
+`graphics_system_->OnHostGpuLossFromAnyThread(true)`).
+
+### 9.2 Por que o rebuild não resolve a causa
+
+A causa do congelamento é o **driver**, não o motor: `KGSL timestamp wait failed: errno 71
+(Protocol error)` (tu_knl_kgsl.cc:856) e `submit failed: Protocol error`
+(tu_knl_kgsl.cc:1691). O device morre **na GPU**.
+
+Prova de que não é a versão do driver: as 2 travadas da sessão de 12:07 foram com
+**Mesa 26.3.0-devel (git-30da39187d)** e as de 22:09 e 23:15 com **Mesa 27.0.0-devel
+(git-48ac151e84)** — o r4 estava no ar e o device morreu igual. Rebuildar o motor não muda
+o KGSL.
+
+### 9.3 Se ainda assim for feito, o caminho é este (tudo é público)
+
+| peça | onde está | situação |
+|---|---|---|
+| projeto do port | `codepdbh/NFS-CARBON-360-ANDROID-RECOMP` | público |
+| SDK do renderizador nativo | `codepdbh/nfsmw-android` → `sdk/` (1072 arquivos) | público (GPL-3.0) |
+| SDK upstream | `rexglue/rexglue-sdk` (1301 arquivos) | público (BSD-3) |
+| **cópia do jogo (o `default.xex`)** | `/sdcard/NFSCARBON/default.xex` no aparelho | **presente**; sha256 confere com o exigido pelo port (`b1e42391…304221`) |
+| alvo a rebuildar | `rexruntime` → `librexruntime.so` (8,5 MB, **só o motor**) | o `libmain.so` de 55 MB é o **jogo recompilado** (PowerPC→C++, 72.822 entradas, gerado pelo `nfscarbon_codegen`) |
+
+Custo real: o build oficial é **Windows** (`build_pc.ps1` = VS + clang20 + cmake/ninja; o
+Android do port usa gradle+NDK). No ambiente atual: **sem NDK**, sem `cmake`/`ninja`,
+clang 21 do Termux (o SDK exige Clang 18+ ✅), **9,1 GB livres** (disco 92% usado) e
+dependências pesadas por submódulo (FFmpeg, SDL3, SPIRV-Tools, glslang, vulkan-headers). O
+`default.xex` está no aparelho, mas o `codegen` do jogo (72.822 entradas) é o trabalho
+grandão — e **não é preciso** para o que importa: só o `rexruntime` precisaria ser
+recompilado.
+
+### 9.4 O que o rebuild abriria de útil (e o custo)
+
+O cvar **`present_esperar_adquisicion_en_cpu`** — "esperar a imagem da cadeia de troca na
+CPU (fence) em vez de semáforo no pintado, **para não parar o canal da GPU**" — é
+exatamente o mecanismo que mata o KGSL. Mas ele está atrás de `#if REX_PLATFORM_SWITCH`
+(vulkan_presenter.cpp:2047): **no Android o valor é `false` fixo** (o log confirma:
+"[presentador] adquisicion esperada en la CPU = no"). Só um rebuild abriria esse caminho,
+ao custo de esperar na CPU (perde FPS) — e é um remendo que a comunidade do port ainda não
+validou no Android.
+
+### 9.5 O caminho mais barato que resta (sem rebuild)
+
+**Reduzir a carga na GPU.** O log mostra a cena entregando **36 Mtexels/quadro em média
+(máx. 103)**, com 22 passes em média e picos de 63, e `320 (cubo y desenfoque) 4.00 ms` por
+quadro. A linha mais dura é esta:
+
+```
+[nativo] C2: copias=1660268 (de profundidad 121445) borrados=1280248 (de profundidad 730918)
+           presentados=79284 rechazos=0; GPU 27.52 ms por Swap (586 trabajos medidos)
+```
+
+**27,52 ms de GPU por quadro** é o combustível que mata o KGSL. E a maior parte desse
+trabalho é exatamente o que os **19 atalhos do renderizador do Most Wanted** eliminam — que
+têm **default `true` no motor** (`REXCVAR_DEFINE_BOOL(nfsmw_nativo_sin_desenfoque, true, …)`)
+e vêm **ligados** no `nfsmw.toml` do MW, mas que o port do Carbon **desliga todos** por padrão
+("ainda não validados no Carbon"), passando `--flag=false` para cada um.
+
+Ganhos medidos pelo time do MW (nos comentários do próprio código):
+
+| atalho | ganho |
+|---|---|
+| `nfsmw_nativo_sin_desenfoque` | blur radial: **1,5–2,0 ms reais** por quadro (7 das 12 amostras do quad de composição) |
+| `nfsmw_nativo_resolver_sin_copia` | **−2,36 ms** dos 7,41 de cópias (troca a imagem em vez de copiar) |
+| `nfsmw_nativo_intercambiar_sin_borrado` | **2,4 ms** (a cópia do mapa de sombras 1600×1600) |
+| `nfsmw_nativo_frontal_perezoso` | **0,59 Mpixeles** menos por quadro |
+| `nfsmw_nativo_profundidad_perezosa` | ~0,35 ms de GPU por quadro |
+| `nfsmw_nativo_sombra_minimo` | evita a cópia de 1600×1600 do 2º mapa de sombras |
+| `nfsmw_nativo_pase_area_util` / `restaurar_area_util` | desenha só a área útil |
+| `nfsmw_nativo_saltar_borrados_repetidos` | pula borrados redundantes (não muda 1 pixel) |
+| `nfsmw_nativo_pcf_barato`, `sombra_minimo`, `saltar_invisibles`, `z_temprana`, `cache_texturas_entre_fotogramas`, `dedupe_vertices`, `cielo_aplazado`, `sin_ps_sin_color`, `ps_solo_alfa`, `sombras_sin_vegetacion`, `resolver_contenido_valido` | menos passes e menos desenhos |
+
+**Implementado no alpha.6:** o launcher ganhou **"Perfil de GPU"** com três presets:
+
+| perfil | atalhos MW | resolução | FPS | texturas |
+|---|---|---|---|---|
+| **Padrão · fiel** | desligados | 1024×576 | 60 | 192 MB |
+| **Estável · recomendado** | **ligados** | 1024×576 | 60 | 192 MB |
+| **Leve · máxima segurança** | ligados | 640×360 | 30 | 128 MB |
+
+"Personalizado" aparece quando as opções não batem com nenhum preset. Cada perfil mexe só nas
+opções que ele define; o resto do painel continua livre.
+
+**Como conferir que pegou (sem rebuild):** os contadores do motor só aparecem quando o atalho
+está ligado — com os atalhos desligados o log **não tem** nenhuma dessas linhas; com eles
+ligados aparecem (uma a cada ~20 s):
+
+```
+[nativo] C2 borrados saltados: N de color y M de profundidad desde el arranque; ...
+[nativo] C2 resoluciones sin copia: N intercambios (...) y M restauraciones desde el arranque
+[nativo] C2 frontal perezoso (build 184): ...
+[nativo] C2 profundidad perezosa: ...
+```
+
+E o painel de diagnóstico passou a mostrar **"Sessão: N min · mortes do device: N ✓"** — a
+métrica do A/B (com o perfil Estável, o esperado é **0**).
+
+> Detalhe de como o motor lê config: `rex_app.cpp:146` → `exe_dir / GetName() + ".toml"`, ou
+> seja **`nfscarbon.toml`**. O `nfsmw.toml` do MW **nunca é lido** pelo Carbon — por isso os
+> atalhos do MW só chegam pelo caminho do launcher (`--flag=false` quando o atalho está
+> desligado).
+
+## 10. O que falta (alpha.2 em diante)
 
 1. **Recuperação automática**: a vigia já detecta e registra a travada; falta
    resolver sozinho (hoje exige o toque do usuário em "Reiniciar renderização").

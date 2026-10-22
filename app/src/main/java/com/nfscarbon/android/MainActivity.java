@@ -248,6 +248,9 @@ public final class MainActivity extends Activity {
         optionsList.addView(Ui.row(this, "Procurar atualizações",
                 checkingUpdates ? "Consultando GitHub…" : "Versão " + ReleaseUpdates.installed(this),
                 Ui.ACCENT, ignored -> checkUpdates(true)));
+        // Perfil de GPU: um toque para a configuracao que o driver aguenta (veja GameOptions).
+        optionsList.addView(Ui.row(this, "Perfil de GPU",
+                profileLabel(), Ui.ACCENT, ignored -> chooseProfile()));
         for (GameOptions.Option option : GameOptions.ALL) {
             optionsList.addView(Ui.row(this, option.title,
                     option.label(GameOptions.get(this, option.key)), Ui.ACCENT,
@@ -587,6 +590,30 @@ public final class MainActivity extends Activity {
                 GameOptions.set(this, option.key, option.values[value]);
                 refreshOptions(); choice.dismiss();
             }).setNegativeButton("Fechar", null).show();
+    }
+
+    private String profileLabel() {
+        String profile = GameOptions.profileOf(this);
+        for (int i = 0; i < GameOptions.PROFILE_VALUES.length; i++)
+            if (GameOptions.PROFILE_VALUES[i].equals(profile)) return GameOptions.PROFILE_LABELS[i];
+        return profile;
+    }
+
+    /** Escolhe o perfil de GPU: aplica as opcoes dele de uma vez. */
+    private void chooseProfile() {
+        String current = GameOptions.profileOf(this);
+        int selected = 0;
+        for (int i = 0; i < GameOptions.PROFILE_VALUES.length; i++)
+            if (GameOptions.PROFILE_VALUES[i].equals(current)) selected = i;
+        new AlertDialog.Builder(this).setTitle("Perfil de GPU")
+            .setSingleChoiceItems(GameOptions.PROFILE_LABELS, selected, (choice, value) -> {
+                if (value < 3) {
+                    GameOptions.applyProfile(this, GameOptions.PROFILE_VALUES[value]);
+                    refreshOptions();
+                }
+                choice.dismiss();
+            })
+            .setNegativeButton("Fechar", null).show();
     }
 
     private void showChecks() {

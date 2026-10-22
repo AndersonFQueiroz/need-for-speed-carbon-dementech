@@ -39,6 +39,59 @@ final class GameOptions {
         "nfsmw_nativo_cache_texturas_entre_fotogramas", "nfsmw_nativo_sin_desenfoque", "nfsmw_nativo_pcf_barato",
         "nfsmw_nativo_sombra_minimo", "nfsmw_nativo_saltar_invisibles", "nfsmw_nativo_resolver_contenido_valido",
     };
+
+    /**
+     * Perfis de GPU. O congelamento tipo B (o device Vulkan morre no driver Turnip/KGSL) acontece
+     * quando a GPU fica tempo demais sem responder: o log mediu 27,52 ms de GPU por Swap, com
+     * 1,66 milhao de copias e 1,28 milhao de borrados na sessao. Os 19 atalhos do renderizador do
+     * Most Wanted (medidos la) cortam exatamente esse trabalho, mas o port do Carbon os desliga
+     * por padrao ("ainda nao validados no Carbon"). O perfil "estavel" religa os 19, mantendo a
+     * resolucao: e a configuracao que o proprio motor traz como padrao (default=true em cada cvar)
+     * e a que o nfsmw.toml do MW usa.
+     */
+    static final String PROFILE_STD = "std";
+    static final String PROFILE_STABLE = "stable";
+    static final String PROFILE_LIGHT = "light";
+    static final String PROFILE_CUSTOM = "custom";
+    static final String[] PROFILE_VALUES = {PROFILE_STD, PROFILE_STABLE, PROFILE_LIGHT, PROFILE_CUSTOM};
+    static final String[] PROFILE_LABELS = {
+        "Padrão · fiel (sem atalhos)",
+        "Estável · recomendado (atalhos do MW)",
+        "Leve · máxima segurança (640×360, 30 FPS)",
+        "Personalizado",
+    };
+    // O que cada perfil mexe. O resto das opcoes continua livre.
+    private static final String[][] PROFILE_VALUES_BY_KEY = {
+        {"native_shortcuts", "off", "on", "on"},
+        {"resolution", "1024x576", "1024x576", "640x360"},
+        {"fps", "60", "60", "30"},
+        {"texture_memory", "192", "192", "128"},
+    };
+
+    /** Aplica um perfil: escreve as opcoes que ele define, como o painel faria. */
+    static void applyProfile(Context context, String profile) {
+        for (String[] row : PROFILE_VALUES_BY_KEY) {
+            String value = null;
+            for (int i = 0; i < PROFILE_VALUES.length; i++) {
+                if (PROFILE_VALUES[i].equals(profile)) { value = row[i + 1]; break; }
+            }
+            if (value != null) set(context, row[0], value);
+        }
+    }
+
+    /** Qual perfil as opcoes atuais descrevem ("custom" quando nao batem com nenhum). */
+    static String profileOf(Context context) {
+        for (int i = 0; i < PROFILE_VALUES.length; i++) {
+            String profile = PROFILE_VALUES[i];
+            if (PROFILE_CUSTOM.equals(profile)) continue;
+            boolean match = true;
+            for (String[] row : PROFILE_VALUES_BY_KEY) {
+                if (!row[i + 1].equals(get(context, row[0]))) { match = false; break; }
+            }
+            if (match) return profile;
+        }
+        return PROFILE_CUSTOM;
+    }
     // Voices, race intros and videos: the console language. The PAL English disc only has them in English.
     static final Option VOICES = new Option("voices", "Idioma das vozes", null, "english",
         new String[]{"english", "text"}, new String[]{"Inglês · cópias PAL inglesas", "Igual aos textos · cópias dubladas"});
