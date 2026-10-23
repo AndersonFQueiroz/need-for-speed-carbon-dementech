@@ -28,8 +28,8 @@ final class Ui {
     static final int OUTLINE = 0xFF2C2C39;
     static final int CHROME = 0xFFC9CFDD;
     static final int CHROME_DIM = 0xFF8A92A3;
-    static final int ACCENT = 0xFF5FD3F3;
-    static final int ACCENT_DIM = 0xFF2E7C93;
+    static final int ACCENT = 0xFFFF3B4E;
+    static final int ACCENT_DIM = 0xFF8E1220;
     static final int DANGER = 0xFFE46A6A;
     static final int OK = 0xFF7BD88F;
     static final int WARNING = 0xFFE5C07B;
