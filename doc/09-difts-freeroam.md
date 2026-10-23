@@ -34,6 +34,7 @@ Flags do registro: `0x40` visível · `0x01` tentada · `0x02` **vencida** ·
 | Lookout Point | Bushido | 7/7 | **70** |
 | Devil's Creek Pass | 21st Street | 2/7 | **13** |
 | Knife's Edge | 21st Street | 1/7 | **64** |
+| Journeyman's Bane | — | 6/7 (hex 6) | **46** |
 
 ## Receita
 
@@ -57,5 +58,9 @@ adb push saida.device \
    vivo).
 4. **Confira o export depois do import** (`adb pull .../saveio/out/ALIAS_ANDERSON`
    e compare o md5 com o arquivo forjado) antes de mandar o usuário abrir o jogo.
-5. **Backup antes de forjar**: `save_pre_forja.device` (estado original) fica em
+5. **Derrota não grava nada na tabela** (nem flag `0x01`): só a vitória escreve a área —
+   confirmado no diff play3→play4. O comentário "vencer ou perder" do `rodada.sh` está errado.
+6. **Forjar a área não entrega a recompensa** do evento (o "Prize Pack" é gravado no fim da
+   corrida). Recompensas liberadas por fora ficam na linha de unlocks — ver `doc/10`.
+7. **Backup antes de forjar**: `save_pre_forja.device` (estado original) fica em
    `/tmp/opencode/` e também em `/sdcard/Documents/nfs-carbon-backups/`.
