@@ -92,7 +92,7 @@ public final class GameActivity extends SDLActivity
     @Override
     protected void onCreate(Bundle state) {
         File appRoot = new File(getFilesDir(), "nfscarbon");
-        gameRoot = new File(Environment.getExternalStorageDirectory(), MainActivity.GAME_FOLDER_NAME).getAbsolutePath();
+        gameRoot = new File(new File(Environment.getExternalStorageDirectory(), MainActivity.GAME_PARENT), MainActivity.GAME_FOLDER_NAME).getAbsolutePath();
         userRoot = new File(appRoot, "user").getAbsolutePath();
         cacheRoot = new File(appRoot, "cache").getAbsolutePath();
         new File(userRoot).mkdirs();

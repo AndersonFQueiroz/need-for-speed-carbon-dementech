@@ -365,7 +365,7 @@ o KGSL.
 | projeto do port | `codepdbh/NFS-CARBON-360-ANDROID-RECOMP` | público |
 | SDK do renderizador nativo | `codepdbh/nfsmw-android` → `sdk/` (1072 arquivos) | público (GPL-3.0) |
 | SDK upstream | `rexglue/rexglue-sdk` (1301 arquivos) | público (BSD-3) |
-| **cópia do jogo (o `default.xex`)** | `/sdcard/NFSCARBON/default.xex` no aparelho | **presente**; sha256 confere com o exigido pelo port (`b1e42391…304221`) |
+| **cópia do jogo (o `default.xex`)** | `/sdcard/Jogos/NFSCARBON/default.xex` no aparelho | **presente**; sha256 confere com o exigido pelo port (`b1e42391…304221`) |
 | alvo a rebuildar | `rexruntime` → `librexruntime.so` (8,5 MB, **só o motor**) | o `libmain.so` de 55 MB é o **jogo recompilado** (PowerPC→C++, 72.822 entradas, gerado pelo `nfscarbon_codegen`) |
 
 Custo real: o build oficial é **Windows** (`build_pc.ps1` = VS + clang20 + cmake/ninja; o

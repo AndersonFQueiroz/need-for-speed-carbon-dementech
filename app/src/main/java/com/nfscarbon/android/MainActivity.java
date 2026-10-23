@@ -41,6 +41,7 @@ import java.security.MessageDigest;
 /** Launcher Dementech do NFS Carbon 360 (port recompilado para Android). */
 public final class MainActivity extends Activity {
     static final String GAME_FOLDER_NAME = "NFSCARBON";
+    static final String GAME_PARENT = "Jogos";
     private ShaderBuilder shaderBuilder;
     private static final int IMPORT = 10;
     private static final int REQUEST_DRIVER_ZIP = 45;
@@ -156,7 +157,7 @@ public final class MainActivity extends Activity {
         importParams.leftMargin = Ui.dp(this, 8);
         fileActions.addView(importButton, importParams);
 
-        TextView note = Ui.label(this, "Armazenamento interno/NFSCARBON", 10, Ui.CHROME_DIM);
+        TextView note = Ui.label(this, "Armazenamento interno/Jogos/NFSCARBON", 10, Ui.CHROME_DIM);
         note.setPadding(Ui.dp(this, 2), Ui.dp(this, 8), 0, 0);
         left.addView(note);
         return left;
@@ -447,7 +448,7 @@ public final class MainActivity extends Activity {
         if (busy) return;
         if (!storageAllowed()) { permission(); return; }
         new AlertDialog.Builder(this).setTitle("Importar Carbon")
-            .setMessage("Os arquivos serão copiados para NFSCARBON. São necessários ~6 GB livres. "
+            .setMessage("Os arquivos serão copiados para Jogos/NFSCARBON. São necessários ~6 GB livres. "
                     + "A cópia existente fica como backup e ocupa espaço extra.")
             .setPositiveButton("Escolher pasta", (dialog, which) -> startActivityForResult(
                 new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
@@ -659,7 +660,9 @@ public final class MainActivity extends Activity {
         checks.addView(row, new LinearLayout.LayoutParams(0, -2, name.equals("default.xex") ? 2 : 1));
     }
 
-    private File gameRoot() { return new File(Environment.getExternalStorageDirectory(), GAME_FOLDER_NAME); }
+    private File gameRoot() {
+        return new File(new File(Environment.getExternalStorageDirectory(), GAME_PARENT), GAME_FOLDER_NAME);
+    }
     private boolean storageAllowed() {
         return Build.VERSION.SDK_INT >= 30 ? Environment.isExternalStorageManager()
                 : checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
@@ -781,7 +784,7 @@ public final class MainActivity extends Activity {
         Uri uri = data.getData(); busy = true; play.setEnabled(false); importButton.setEnabled(false);
         status.setText("Copiando seu jogo. Deixe esta tela aberta…");
         new Thread(() -> {
-            File staging = new File(Environment.getExternalStorageDirectory(), GAME_FOLDER_NAME + "-import-" + System.currentTimeMillis());
+            File staging = new File(new File(Environment.getExternalStorageDirectory(), GAME_PARENT), GAME_FOLDER_NAME + "-import-" + System.currentTimeMillis());
             try {
                 DocumentFile source = DocumentFile.fromTreeUri(this, uri);
                 if (source == null || !source.isDirectory()) throw new IOException("A pasta não pode ser aberta.");

@@ -22,7 +22,7 @@
 │ /data/user/0/com.nfscarbon.android/files/                        │
 │   nfscarbon/user/<XUID>/454107EC/00000001/ALIAS_ANDERSON  (save) │
 │   nfscarbon/user/…/nfscarbon_shaders.nfsp                (shaders)│
-│ /sdcard/NFSCARBON/{default.xex,NFS/,Movies/}              (jogo)  │
+│ /sdcard/Jogos/NFSCARBON/{default.xex,NFS/,Movies/}              (jogo)  │
 │ /sdcard/Android/data/com.nfscarbon.android/files/logs/carbon.log │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -73,7 +73,7 @@ ele é o dono do diretório privado do app.
 | Config | `nfscarbon.toml` | lido pelo motor na pasta de dados |
 | Shaders | `files/nfscarbon/user/…/nfscarbon_shaders.nfsp` | cache do pipeline |
 | Log | `files/logs/carbon.log` (externo) | lido pela aba Diagnóstico |
-| Pasta do jogo | `/sdcard/NFSCARBON` | `default.xex` + `NFS/` + `Movies/` |
+| Pasta do jogo | `/sdcard/Jogos/NFSCARBON` | `default.xex` + `NFS/` + `Movies/` |
 
 ## Decisões de build
 
