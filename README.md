@@ -47,7 +47,7 @@ O launcher foi reescrito do zero pela **Dementech**, com:
 - correção do bug de layout do painel de opções do launcher original.
 
 O motor nativo é binário e **não é distribuído aqui**: o script
-`tools/fetch_engine.sh` baixa o release oficial e valida o sha256.
+`tools/fetch_engine.sh` extrai o motor de um APK local e valida o sha256.
 
 ## Screenshots
 
@@ -92,7 +92,7 @@ entregas de quadro. Comparando a mesma máquina:
 
 Ou seja: **pedir 60 fps satura a fila e quebra o ritmo**; a 30 fps o jogo fica
 perfeito. O congelamento é a ponta desse mesmo efeito — e é a mesma variável
-que a [issue #204 do port do Most Wanted](https://github.com/codepdbh/nfsmw-android/issues/204)
+que a issue #204 do port do Most Wanted
 aponta ("congela quando configuro os FPS a mais de 60").
 
 Daí a aposta deste projeto: **medir antes de mexer**. A aba de diagnóstico
@@ -126,7 +126,7 @@ cada hipótese com experimento (ver [`doc/08-roadmap.md`](doc/08-roadmap.md)).
 ```bash
 git clone https://github.com/AndersonFQueiroz/need-for-speed-carbon-dementech.git
 cd need-for-speed-carbon-dementech
-tools/fetch_engine.sh          # baixa o motor oficial e confere o sha256
+tools/fetch_engine.sh          # extrai o motor do APK local e confere o sha256
 ./gradlew :app:assembleRelease
 ```
 

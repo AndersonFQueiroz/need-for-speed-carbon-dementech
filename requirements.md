@@ -35,7 +35,7 @@ Convenção: `RF` = funcional, `RNF` = não funcional, `CA` = critério de aceit
 | ID | Requisito | CA |
 |---|---|---|
 | RNF-01 | Compilável no próprio celular (Termux, ARM64) | `./gradlew :app:assembleRelease` conclui com < 2 GB de RAM e sem NDK |
-| RNF-02 | Motor pinado e verificável | `tools/fetch_engine.sh` valida o sha256 do release oficial |
+| RNF-02 | Motor pinado e verificável | `tools/fetch_engine.sh` valida o sha256 do APK do motor |
 | RNF-03 | Não distribuir material da EA | Nenhum `default.xex`, `NFS/` ou `Movies/` no repositório |
 | RNF-04 | Não perder save ao atualizar o launcher | Mesma chave de assinatura; `adb install -r` preserva `/data/user/0/<pkg>` |
 | RNF-05 | Diagnóstico reproduzível fora do app | `tools/diagnose_freeze.py` produz o mesmo número que a aba Diagnóstico |

@@ -5,8 +5,8 @@ Este repositório é um **fork do launcher** do port
 que por sua vez deriva do
 [NFS Most Wanted Android Evolved](https://github.com/codepdbh/nfsmw-android).
 O **motor** (a recompilação estática do Carbon de Xbox 360) é binário de
-terceiros e **não é distribuído aqui**: é baixado pelo `tools/fetch_engine.sh`
-a partir do release oficial, com verificação de sha256.
+terceiros e **não é distribuído aqui**: é extraído do APK do motor por
+`tools/fetch_engine.sh`, com verificação de sha256.
 
 ## Resumo das licenças
 

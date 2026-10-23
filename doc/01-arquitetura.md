@@ -13,7 +13,7 @@
                 │ JNI (nomes fixos: GameActivity.*, TouchControlsView.*)
 ┌───────────────▼──────────────���───────────────────────────────────┐
 │ Motor nativo (binário de terceiros, pinado por sha256)            │
-│  libmain.so (recomp do Carbon X360) · librexruntime · librexgpu-  │
+│  libmain.so (jogo nativo) · librexruntime · librexgpu-xenos       │
 │  xenos · libSDL3 · hooks (main, file_redirect, gsl_alloc)         │
 │  ReXGlue: presenter, command processor, logging, cvar              │
 └───────────────┬──────────────────────────────────────────────────┘
@@ -46,7 +46,7 @@ As opções do launcher **vencem** o `nfscarbon.toml`.
 
 ### `ShaderBuilder` (upstream)
 Compila a biblioteca de shaders no próprio aparelho (WebView + WASM do DXC e do
-HLSL do port). Roda uma vez; o resultado fica em `nfscarbon_shaders.nfsp`.
+HLSL do motor). Roda uma vez; o resultado fica em `nfscarbon_shaders.nfsp`.
 
 ### `Ui` (Dementech)
 Paleta e componentes. Único lugar com cor literal.

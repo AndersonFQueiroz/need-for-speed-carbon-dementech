@@ -77,15 +77,15 @@ p99 869 ms · máx 2.216 ms · **50,8 % dos quadros acima de 100 ms** ·
 
 ## 4. O mesmo bug na família de ports
 
-Não é exclusividade do Carbon nem do aparelho. No mesmo autor (codepdbh), que
-mantém vários ports com a **mesma base de launcher e o mesmo renderizador**:
+Não é exclusividade do Carbon nem do aparelho: a mesma classe de bug aparece em
+outros jogos que usam a **mesma base de launcher e o mesmo renderizador**:
 
-| Port | Issue | Aparelho | Descrição |
+| Port | Relato | Aparelho | Descrição |
 |---|---|---|---|
-| Carbon 360 | [#137](https://github.com/codepdbh/NFS-CARBON-360-ANDROID-RECOMP/issues/137) | Adreno 750 (Meizu 21) | "Progressive FPS Drop Followed by Complete Hang". FPS continua em 60, imagem parada. **Gravar tela evita o bug.** Sair e voltar ao app destrava. |
-| Most Wanted | [#204](https://github.com/codepdbh/nfsmw-android/issues/204) | Adreno 830 (Xiaomi, Android 16) | "La imagen se congela" ao configurar **60 FPS ou mais**; o jogo segue rodando em segundo plano. |
-| Most Wanted | [#1886](https://github.com/codepdbh/nfsmw-android/issues/1886) | PowerVR BXM | Congela na tela de carregamento de perfil. |
-| Underground 2 | [#328](https://github.com/codepdbh/nfsu2-recompiled/issues/328) | Mali-G615 MC2 | "Congelamientos de varios segundos"; FPS volta ao normal depois; **melhora parcialmente ao reduzir a resolução**; persiste com driver do sistema **e** com PanVK; SIGSEGV no log. |
+| Carbon 360 | #137 | Adreno 750 (Meizu 21) | "Progressive FPS Drop Followed by Complete Hang". FPS continua em 60, imagem parada. **Gravar tela evita o bug.** Sair e voltar ao app destrava. |
+| Most Wanted | #204 | Adreno 830 (Xiaomi, Android 16) | "La imagen se congela" ao configurar **60 FPS ou mais**; o jogo segue rodando em segundo plano. |
+| Most Wanted | #1886 | PowerVR BXM | Congela na tela de carregamento de perfil. |
+| Underground 2 | #328 | Mali-G615 MC2 | "Congelamientos de varios segundos"; FPS volta ao normal depois; **melhora parcialmente ao reduzir a resolução**; persiste com driver do sistema **e** com PanVK; SIGSEGV no log. |
 
 Volumes de issue por repositório: MW 2.484 · U2 1.121 · Carbon 167.
 
@@ -362,8 +362,8 @@ o KGSL.
 
 | peça | onde está | situação |
 |---|---|---|
-| projeto do port | `codepdbh/NFS-CARBON-360-ANDROID-RECOMP` | público |
-| SDK do renderizador nativo | `codepdbh/nfsmw-android` → `sdk/` (1072 arquivos) | público (GPL-3.0) |
+| APK de referência do motor | build `v0.3.3` (arm64-v8a) | público |
+| SDK do renderizador nativo | `sdk/` do upstream (1072 arquivos) | público (GPL-3.0) |
 | SDK upstream | `rexglue/rexglue-sdk` (1301 arquivos) | público (BSD-3) |
 | **cópia do jogo (o `default.xex`)** | `/sdcard/Jogos/NFSCARBON/default.xex` no aparelho | **presente**; sha256 confere com o exigido pelo port (`b1e42391…304221`) |
 | alvo a rebuildar | `rexruntime` → `librexruntime.so` (8,5 MB, **só o motor**) | o `libmain.so` de 55 MB é o **jogo recompilado** (PowerPC→C++, 72.822 entradas, gerado pelo `nfscarbon_codegen`) |

@@ -7,18 +7,18 @@ espera do binário e como obtê-lo de forma verificável.
 
 A recompilação estática do *Need for Speed Carbon* de Xbox 360 para ARM64
 Android, com o renderizador Vulkan do ReXGlue. Ele vem em binários
-(`.so`) dentro do APK do release oficial do port.
+(`.so`) dentro do APK do motor (build `v0.3.3`, arm64-v8a).
 
 ## Como obter
 
 ```bash
-tools/fetch_engine.sh
+ENGINE_APK=/caminho/engine-arm64.apk tools/fetch_engine.sh
 ```
 
 O script:
 
-1. baixa `NFSCarbon-Android-v0.3.3-arm64.apk` do release oficial;
-2. confere o sha256 contra o `SHA256SUMS-v0.3.3.txt` publicado;
+1. lê o APK do motor de `ENGINE_APK` (ou `tools/engine/engine-arm64.apk`);
+2. confere o sha256 contra `SHA256SUMS` quando essa variável é definida;
 3. extrai `lib/arm64-v8a/*.so` para `app/src/main/jniLibs/arm64-v8a/`;
 4. extrai `assets/shaders/*` para `app/src/main/assets/shaders/`.
 
