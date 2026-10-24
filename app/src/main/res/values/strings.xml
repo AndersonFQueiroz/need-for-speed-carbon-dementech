@@ -3,7 +3,7 @@
      vindo dos arquivos do port (LANGUAGES_* / GLOBALMEMORYFILE). -->
 <resources>
     <string name="app_name">Dementech · NFS Carbon</string>
-    <string name="brand_tagline">NFS Carbon 360 · port Android</string>
+    <string name="brand_tagline">NFS Carbon 360 · Android</string>
     <string name="brand_developed_by">Desenvolvido por Dementech</string>
 
     <string name="play">JOGAR</string>
@@ -30,9 +30,9 @@
     <string name="save_editor_soon_desc">Planejado para a v0.3 — ver doc/ideias</string>
 
     <string name="about_credits">Créditos</string>
-    <string name="about_credits_desc">Port original, ReXGlue, SDL3 e colaboradores</string>
+    <string name="about_credits_desc">Dementech · ReXGlue · SDL3</string>
     <string name="about_license">Licenças</string>
-    <string name="about_license_desc">MIT no código Dementech · GPL-3.0 no port original</string>
+    <string name="about_license_desc">MIT no código Dementech · componentes de terceiros mantêm suas licenças</string>
     <string name="about_source">Código-fonte</string>
     <string name="about_source_desc">github.com/AndersonFQueiroz/need-for-speed-carbon-dementech</string>
 </resources>

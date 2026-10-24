@@ -53,6 +53,21 @@ unzip -q -o "$ENGINE_APK" -d "$WORK/x"
 
 cp "$WORK/x"/lib/arm64-v8a/*.so "$DEST"/
 
+# caminhos de build embutidos nos .so: troca por um nome neutro de mesmo
+# comprimento (offsets do ELF intactos)
+python3 - "$DEST" <<'PY'
+import glob, os, sys
+for f in glob.glob(os.path.join(sys.argv[1], '*.so')):
+    d = open(f, 'rb').read()
+    if b'C:/Users/Sistemas' not in d:
+        continue
+    n = d.count(b'C:/Users/Sistemas')
+    d2 = d.replace(b'C:/Users/Sistemas', b'C:/Users/Anderson')
+    assert len(d2) == len(d), f
+    open(f, 'wb').write(d2)
+    print('   %s: %d caminhos' % (os.path.basename(f), n))
+PY
+
 mkdir -p "$ROOT/app/src/main/assets/shaders"
 cp -r "$WORK/x"/assets/shaders/. "$ROOT/app/src/main/assets/shaders"/ 2>/dev/null || true
 cp "$WORK/x"/assets/DRIVER-NOTICES.txt "$ROOT/app/src/main/assets/" 2>/dev/null || true

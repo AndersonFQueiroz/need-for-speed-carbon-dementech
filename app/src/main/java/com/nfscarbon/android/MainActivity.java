@@ -1,7 +1,7 @@
 // Dementech · NFS Carbon — launcher reescrito (identidade visual, pt-BR, diagnóstico).
 //
 // A lógica de jogo (importar cópia, driver Vulkan, compilação de shaders, começar
-// o jogo) vem do launcher original do port (codepdbh/nfsmw-android, GPL-3.0);
+// o jogo) vem do launcher base (GPL-3.0 — ver THIRD_PARTY_NOTICES);
 // a camada visual e a aba de diagnóstico são do Dementech (MIT).
 // SPDX-License-Identifier: GPL-3.0-only
 package com.nfscarbon.android;
