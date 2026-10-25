@@ -16,9 +16,12 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.media.MediaPlayer;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.VideoView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -61,6 +64,11 @@ public final class MainActivity extends Activity {
     private TextView accessButton;
     private TextView tabGame, tabDiagnostics, tabCredits;
     private LinearLayout tabContent;
+    private VideoView video;
+    private MediaPlayer music;
+    private boolean musicOn;
+    private FrameLayout panelHost;
+    private TextView soundButton;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -75,125 +83,293 @@ public final class MainActivity extends Activity {
 
     // ---------------------------------------------------------------- tela
 
+    /** Fundo: vídeo do próprio jogo, escurecido para o texto respirar. */
+    private void setupBackdrop(FrameLayout root) {
+        View fallback = new View(this);
+        fallback.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{0xFF0B0D12, 0xFF151922, 0xFF05060A}));
+        root.addView(fallback, new FrameLayout.LayoutParams(-1, -1));
+
+        video = new VideoView(this);
+        video.setAlpha(0f);
+        root.addView(video, new FrameLayout.LayoutParams(-1, -1));
+
+        View scrim = new View(this);
+        scrim.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x6605060A, 0x2205060A, 0xE605060A}));
+        root.addView(scrim, new FrameLayout.LayoutParams(-1, -1));
+
+        View leftScrim = new View(this);
+        leftScrim.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{0xD905060A, 0x6605060A, 0x0005060A}));
+        root.addView(leftScrim, new FrameLayout.LayoutParams(-1, -1));
+    }
+
+    private void startBackdrop() {
+        File clip = assetToCache("launcher/bg.mp4", "backdrop.mp4");
+        if (clip == null) return;
+        video.setVideoPath(clip.getAbsolutePath());
+        video.setOnPreparedListener(player -> {
+            player.setLooping(true);
+            player.setVolume(0f, 0f);
+            video.setAlpha(0f);
+            video.animate().alpha(1f).setDuration(900).start();
+            video.start();
+            Motion.kenBurns(video);
+        });
+        video.setOnErrorListener((player, what, extra) -> true);
+    }
+
+    /** Trilha do jogo tocando baixinho, com botão de mudo no cabeçalho. */
+    private void startMusic() {
+        musicOn = getSharedPreferences("dementech", MODE_PRIVATE).getBoolean("sound", true);
+        File track = assetToCache("launcher/theme.m4a", "theme.m4a");
+        if (track == null) return;
+        try {
+            music = new MediaPlayer();
+            music.setDataSource(track.getAbsolutePath());
+            music.setLooping(true);
+            music.setVolume(0.45f, 0.45f);
+            music.prepare();
+            if (musicOn) music.start();
+        } catch (IOException error) {
+            music = null;
+        }
+        updateSoundButton();
+    }
+
+    private void toggleMusic() {
+        musicOn = !musicOn;
+        getSharedPreferences("dementech", MODE_PRIVATE).edit().putBoolean("sound", musicOn).apply();
+        if (music != null) {
+            if (musicOn) music.start(); else music.pause();
+        }
+        updateSoundButton();
+    }
+
+    private void updateSoundButton() {
+        if (soundButton == null) return;
+        soundButton.setText(musicOn ? "SOM  ON" : "SOM  OFF");
+        soundButton.setTextColor(musicOn ? Ui.CHROME : Ui.CHROME_DIM);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(musicOn ? 0x26FF3B4E : 0x14FFFFFF);
+        bg.setCornerRadius(Ui.dp(this, 10));
+        bg.setStroke(1, musicOn ? Ui.ACCENT : 0x33FFFFFF);
+        soundButton.setBackground(bg);
+    }
+
+    private File assetToCache(String asset, String name) {
+        File out = new File(getCacheDir(), name);
+        if (out.isFile() && out.length() > 0) return out;
+        try (InputStream input = getAssets().open(asset);
+             FileOutputStream output = new FileOutputStream(out)) {
+            byte[] buffer = new byte[256 * 1024];
+            for (int count; (count = input.read(buffer)) != -1;) output.write(buffer, 0, count);
+            return out;
+        } catch (IOException error) {
+            return null;
+        }
+    }
+
     private View buildScreen() {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{0xFF0B0B11, 0xFF13131B, 0xFF08080C}));
+        FrameLayout root = new FrameLayout(this);
+        setupBackdrop(root);
 
-        root.addView(buildHeader(), Ui.matchWrap());
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(Ui.dp(this, 30), Ui.dp(this, 18), Ui.dp(this, 30), Ui.dp(this, 20));
+        root.addView(content, new FrameLayout.LayoutParams(-1, -1));
 
-        LinearLayout columns = new LinearLayout(this);
-        columns.setOrientation(LinearLayout.HORIZONTAL);
-        columns.setPadding(Ui.dp(this, 22), Ui.dp(this, 12), Ui.dp(this, 22), Ui.dp(this, 16));
-        root.addView(columns, new LinearLayout.LayoutParams(-1, 0, 1));
+        content.addView(buildHeader(), Ui.matchWrap());
+        View spacer = new View(this);
+        content.addView(spacer, new LinearLayout.LayoutParams(-1, 0, 1f));
+        content.addView(buildHero(), Ui.matchWrap());
 
-        columns.addView(buildLeftColumn(), new LinearLayout.LayoutParams(0, -1, 1.02f));
-        LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(0, -1, 1.1f);
-        rightParams.leftMargin = Ui.dp(this, 18);
-        columns.addView(buildRightColumn(), rightParams);
+        panelHost = new FrameLayout(this);
+        FrameLayout.LayoutParams panelParams = new FrameLayout.LayoutParams(Ui.dp(this, 470), -1,
+                Gravity.END);
+        root.addView(panelHost, panelParams);
+        panelHost.setVisibility(View.GONE);
+
+        startBackdrop();
+        startMusic();
+
+        Motion.enter(content, 0);
         return root;
     }
 
-    /** Cabecalho: marca a esquerda, versao e assinatura a direita. */
+    /** Cabeçalho: marca à esquerda, navegação e som à direita. */
     private View buildHeader() {
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(Ui.dp(this, 22), Ui.dp(this, 14), Ui.dp(this, 22), Ui.dp(this, 4));
 
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.mipmap.ic_launcher);
         logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        header.addView(logo, new LinearLayout.LayoutParams(Ui.dp(this, 62), Ui.dp(this, 62)));
+        header.addView(logo, new LinearLayout.LayoutParams(Ui.dp(this, 46), Ui.dp(this, 46)));
 
         LinearLayout names = new LinearLayout(this);
         names.setOrientation(LinearLayout.VERTICAL);
-        names.setPadding(Ui.dp(this, 14), 0, 0, 0);
-        names.addView(Ui.text(this, "DEMENTECH", 22, Ui.CHROME, true, 0.30f));
-        names.addView(Ui.text(this, "NFS CARBON 360 · PORT ANDROID", 10, Ui.CHROME_DIM, true, 0.18f));
-        header.addView(names, new LinearLayout.LayoutParams(0, -2, 1));
+        names.setPadding(Ui.dp(this, 12), 0, 0, 0);
+        names.addView(Ui.text(this, "DEMENTECH", 16, Ui.CHROME, true, 0.36f));
+        names.addView(Ui.text(this, "NFS CARBON 360", 9, Ui.CHROME_DIM, true, 0.26f));
+        header.addView(names, new LinearLayout.LayoutParams(-2, -2));
 
-        LinearLayout meta = new LinearLayout(this);
-        meta.setOrientation(LinearLayout.VERTICAL);
-        meta.setGravity(Gravity.END);
-        meta.addView(Ui.text(this, "v" + ReleaseUpdates.installed(this), 11, Ui.ACCENT, true, 0.06f));
-        meta.addView(Ui.text(this, "Desenvolvido por Dementech", 10, Ui.CHROME_DIM, false, 0.02f));
-        header.addView(meta, new LinearLayout.LayoutParams(-2, -2));
+        View gap = new View(this);
+        header.addView(gap, new LinearLayout.LayoutParams(0, 1, 1f));
+
+        soundButton = Ui.text(this, "SOM  ON", 10, Ui.CHROME, true, 0.14f);
+        soundButton.setGravity(Gravity.CENTER);
+        soundButton.setPadding(Ui.dp(this, 12), Ui.dp(this, 9), Ui.dp(this, 12), Ui.dp(this, 9));
+        soundButton.setOnClickListener(ignored -> toggleMusic());
+        Motion.press(soundButton);
+        LinearLayout.LayoutParams soundParams = new LinearLayout.LayoutParams(-2, -2);
+        soundParams.rightMargin = Ui.dp(this, 10);
+        header.addView(soundButton, soundParams);
+
+        tabGame = Ui.tab(this, "Jogo", true, ignored -> openPanel(0));
+        tabDiagnostics = Ui.tab(this, "Diagnóstico", false, ignored -> openPanel(1));
+        tabCredits = Ui.tab(this, "Créditos", false, ignored -> openPanel(2));
+        LinearLayout nav = new LinearLayout(this);
+        nav.addView(tabGame, new LinearLayout.LayoutParams(-2, -2));
+        LinearLayout.LayoutParams diagParams = new LinearLayout.LayoutParams(-2, -2);
+        diagParams.leftMargin = Ui.dp(this, 6);
+        nav.addView(tabDiagnostics, diagParams);
+        LinearLayout.LayoutParams creditParams = new LinearLayout.LayoutParams(-2, -2);
+        creditParams.leftMargin = Ui.dp(this, 6);
+        nav.addView(tabCredits, creditParams);
+        header.addView(nav, new LinearLayout.LayoutParams(-2, -2));
+
+        TextView version = Ui.text(this, "v" + ReleaseUpdates.installed(this), 10, Ui.CHROME_DIM,
+                true, 0.12f);
+        LinearLayout.LayoutParams versionParams = new LinearLayout.LayoutParams(-2, -2);
+        versionParams.leftMargin = Ui.dp(this, 14);
+        header.addView(version, versionParams);
         return header;
     }
 
-    /** Coluna da esquerda: identidade, estado do jogo e o botao de jogar. */
-    private View buildLeftColumn() {
-        LinearLayout left = new LinearLayout(this);
-        left.setOrientation(LinearLayout.VERTICAL);
+    /** Hero: nome do jogo em pôster, estado da cópia e as ações. */
+    private View buildHero() {
+        LinearLayout hero = new LinearLayout(this);
+        hero.setOrientation(LinearLayout.VERTICAL);
 
-        LinearLayout hero = Ui.heroCard(this);
-        LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(-1, -2);
-        heroParams.bottomMargin = Ui.dp(this, 12);
-        left.addView(hero, heroParams);
+        TextView eyebrow = Ui.eyebrow(this, "Dementech · port android");
+        hero.addView(eyebrow, Ui.matchWrap());
+        Motion.enter(eyebrow, 120);
 
-        hero.addView(Ui.section(this, "Arquivos do jogo"));
-        status = Ui.label(this, "Verificando arquivos…", 13, Ui.CHROME);
-        status.setPadding(0, 0, 0, Ui.dp(this, 10));
-        hero.addView(status);
+        TextView upper = Ui.text(this, "NEED FOR SPEED", 19, Ui.CHROME_DIM, true, 0.40f);
+        upper.setIncludeFontPadding(false);
+        LinearLayout.LayoutParams upperParams = new LinearLayout.LayoutParams(-2, -2);
+        upperParams.topMargin = Ui.dp(this, 10);
+        hero.addView(upper, upperParams);
+        Motion.enter(upper, 180);
+
+        TextView title = Ui.display(this, "CARBON", 74, Ui.CHROME);
+        title.setLetterSpacing(0.02f);
+        hero.addView(title, Ui.matchWrap());
+        Motion.enter(title, 230);
+
+        View rule = new View(this);
+        GradientDrawable ruleBg = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{Ui.ACCENT, 0x00FF3B4E});
+        rule.setBackground(ruleBg);
+        LinearLayout.LayoutParams ruleParams = new LinearLayout.LayoutParams(Ui.dp(this, 120), Ui.dp(this, 3));
+        ruleParams.topMargin = Ui.dp(this, 4);
+        ruleParams.bottomMargin = Ui.dp(this, 12);
+        hero.addView(rule, ruleParams);
+        Motion.enter(rule, 270);
+
+        status = Ui.label(this, "Verificando arquivos…", 13, Ui.CHROME_DIM);
+        hero.addView(status, Ui.matchWrap());
+
         checks = new LinearLayout(this);
         checks.setOrientation(LinearLayout.HORIZONTAL);
-        hero.addView(checks);
+        LinearLayout.LayoutParams checksParams = new LinearLayout.LayoutParams(-1, -2);
+        checksParams.topMargin = Ui.dp(this, 12);
+        hero.addView(checks, checksParams);
 
-        play = Ui.primaryButton(this, "JOGAR", ignored -> play());
-        play.setOnClickListener(ignored -> play());
-        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(-1, Ui.dp(this, 58));
-        playParams.topMargin = Ui.dp(this, 16);
-        left.addView(play, playParams);
+        LinearLayout actions = new LinearLayout(this);
+        actions.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(-1, -2);
+        actionsParams.topMargin = Ui.dp(this, 20);
+        hero.addView(actions, actionsParams);
 
-        LinearLayout fileActions = new LinearLayout(this);
-        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(-1, Ui.dp(this, 46));
-        actionParams.topMargin = Ui.dp(this, 10);
-        left.addView(fileActions, actionParams);
-        accessButton = Ui.ghostButton(this, "Permitir acesso", ignored -> permission());
-        fileActions.addView(accessButton, new LinearLayout.LayoutParams(0, -1, 1));
+        play = Ui.primaryButton(this, "JOGAR  ▶", ignored -> play());
+        actions.addView(play, new LinearLayout.LayoutParams(Ui.dp(this, 260), Ui.dp(this, 62)));
+
         importButton = Ui.ghostButton(this, "Importar minha cópia", ignored -> importGame());
-        LinearLayout.LayoutParams importParams = new LinearLayout.LayoutParams(0, -1, 1);
-        importParams.leftMargin = Ui.dp(this, 8);
-        fileActions.addView(importButton, importParams);
+        LinearLayout.LayoutParams importParams = new LinearLayout.LayoutParams(Ui.dp(this, 210), Ui.dp(this, 52));
+        importParams.leftMargin = Ui.dp(this, 12);
+        actions.addView(importButton, importParams);
 
-        TextView note = Ui.label(this, "Armazenamento interno/Jogos/NFSCARBON", 10, Ui.CHROME_DIM);
-        note.setPadding(Ui.dp(this, 2), Ui.dp(this, 8), 0, 0);
-        left.addView(note);
-        return left;
+        accessButton = Ui.ghostButton(this, "Permitir acesso", ignored -> permission());
+        LinearLayout.LayoutParams accessParams = new LinearLayout.LayoutParams(Ui.dp(this, 160), Ui.dp(this, 52));
+        accessParams.leftMargin = Ui.dp(this, 10);
+        actions.addView(accessButton, accessParams);
+        accessButton.setVisibility(View.GONE);
+
+        TextView note = Ui.label(this, "Sua cópia em Armazenamento interno/Jogos/NFSCARBON", 10,
+                Ui.CHROME_DIM);
+        note.setPadding(0, Ui.dp(this, 12), 0, 0);
+        hero.addView(note, Ui.matchWrap());
+
+        Motion.enter(status, 300);
+        Motion.enter(checks, 330);
+        Motion.enter(actions, 380);
+        Motion.enter(note, 430);
+        return hero;
     }
 
-    /** Coluna da direita: abas (jogo, diagnóstico, créditos). */
-    private View buildRightColumn() {
-        LinearLayout right = new LinearLayout(this);
-        right.setOrientation(LinearLayout.VERTICAL);
-        right.setPadding(Ui.dp(this, 16), Ui.dp(this, 14), Ui.dp(this, 16), Ui.dp(this, 14));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Ui.SURFACE);
-        bg.setCornerRadius(Ui.dp(this, 20));
-        bg.setStroke(Ui.dp(this, 1), Ui.OUTLINE);
-        right.setBackground(bg);
+    /** Painel lateral de vidro: ajustes, diagnóstico e créditos. */
+    private void openPanel(int index) {
+        if (panelHost == null) return;
+        if (panelHost.getChildCount() == 0) buildPanel();
+        boolean wasHidden = panelHost.getVisibility() != View.VISIBLE;
+        panelHost.setVisibility(View.VISIBLE);
+        if (wasHidden) Motion.slideIn(panelHost, 40, 0);
+        selectTab(index);
+    }
 
-        LinearLayout tabs = new LinearLayout(this);
-        tabs.setGravity(Gravity.START);
-        tabGame = Ui.tab(this, "Jogo", true, ignored -> selectTab(0));
-        tabDiagnostics = Ui.tab(this, "Diagnóstico", false, ignored -> selectTab(1));
-        tabCredits = Ui.tab(this, "Créditos", false, ignored -> selectTab(2));
-        tabs.addView(tabGame, new LinearLayout.LayoutParams(-2, -2));
-        LinearLayout.LayoutParams diagParams = new LinearLayout.LayoutParams(-2, -2);
-        diagParams.leftMargin = Ui.dp(this, 6);
-        tabs.addView(tabDiagnostics, diagParams);
-        LinearLayout.LayoutParams creditParams = new LinearLayout.LayoutParams(-2, -2);
-        creditParams.leftMargin = Ui.dp(this, 6);
-        tabs.addView(tabCredits, creditParams);
-        right.addView(tabs, Ui.matchWrap());
+    private void closePanel() {
+        if (panelHost == null || panelHost.getVisibility() != View.VISIBLE) return;
+        Motion.slideOut(panelHost, 40, () -> panelHost.setVisibility(View.GONE));
+        styleTab(tabGame, false);
+        styleTab(tabDiagnostics, false);
+        styleTab(tabCredits, false);
+    }
+
+    private void buildPanel() {
+        LinearLayout panel = Ui.glass(this, 0);
+        panel.setPadding(Ui.dp(this, 20), Ui.dp(this, 16), Ui.dp(this, 20), Ui.dp(this, 14));
+        panelHost.addView(panel, new FrameLayout.LayoutParams(-1, -1));
+
+        LinearLayout head = new LinearLayout(this);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        head.addView(Ui.text(this, "CENTRAL DEMENTECH", 11, Ui.CHROME, true, 0.28f),
+                new LinearLayout.LayoutParams(0, -2, 1f));
+        TextView close = Ui.text(this, "FECHAR  ✕", 10, Ui.CHROME_DIM, true, 0.14f);
+        close.setPadding(Ui.dp(this, 10), Ui.dp(this, 8), Ui.dp(this, 10), Ui.dp(this, 8));
+        close.setOnClickListener(ignored -> closePanel());
+        head.addView(close, new LinearLayout.LayoutParams(-2, -2));
+        panel.addView(head, Ui.matchWrap());
+
+        View hair = new View(this);
+        GradientDrawable hairBg = new GradientDrawable();
+        hairBg.setColor(0x1FFFFFFF);
+        hair.setBackground(hairBg);
+        LinearLayout.LayoutParams hairParams = new LinearLayout.LayoutParams(-1, 1);
+        hairParams.topMargin = Ui.dp(this, 10);
+        panel.addView(hair, hairParams);
 
         tabContent = new LinearLayout(this);
         tabContent.setOrientation(LinearLayout.VERTICAL);
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
+        scroll.setVerticalScrollBarEnabled(false);
         scroll.addView(tabContent);
-        right.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(-1, 0, 1f);
+        scrollParams.topMargin = Ui.dp(this, 14);
+        panel.addView(scroll, scrollParams);
 
         optionsList = new LinearLayout(this);
         optionsList.setOrientation(LinearLayout.VERTICAL);
@@ -208,8 +384,6 @@ public final class MainActivity extends Activity {
         refreshOptions();
         buildDiagnostics();
         buildCredits();
-        selectTab(0);
-        return right;
     }
 
     private void selectTab(int index) {
@@ -220,14 +394,17 @@ public final class MainActivity extends Activity {
         optionsList.setVisibility(game ? View.VISIBLE : View.GONE);
         diagnosticsList.setVisibility(diag ? View.VISIBLE : View.GONE);
         creditsList.setVisibility(credits ? View.VISIBLE : View.GONE);
+        Motion.swap(game ? optionsList : diag ? diagnosticsList : creditsList);
         if (diag) refreshDiagnostics();
     }
 
     private void styleTab(TextView tab, boolean selected) {
-        tab.setTextColor(selected ? Ui.BLACK : Ui.CHROME_DIM);
+        if (tab == null) return;
+        tab.setTextColor(selected ? Ui.CHROME : Ui.CHROME_DIM);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(selected ? Ui.CHROME : 0x00000000);
-        bg.setCornerRadius(Ui.dp(this, 20));
+        bg.setColor(selected ? 0x1FFFFFFF : 0x00000000);
+        bg.setCornerRadius(Ui.dp(this, 10));
+        bg.setStroke(1, selected ? Ui.ACCENT : 0x1AFFFFFF);
         tab.setBackground(bg);
     }
 
@@ -458,6 +635,8 @@ public final class MainActivity extends Activity {
 
     @Override public void onResume() {
         super.onResume();
+        if (video != null && video.canSeekForward()) video.start();
+        if (music != null && musicOn) music.start();
         launcherResumed = true;
         SaveIO.sync(this);
         refreshOptions();
@@ -471,8 +650,16 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onPause() {
+        if (video != null) video.pause();
+        if (music != null) music.pause();
         launcherResumed = false;
         super.onPause();
+    }
+
+    @Override protected void onDestroy() {
+        if (video != null) { video.stopPlayback(); video = null; }
+        if (music != null) { music.release(); music = null; }
+        super.onDestroy();
     }
     @Override protected void onSaveInstanceState(Bundle state) {
         state.putBoolean("play_after_probe", playAfterProbe);
@@ -654,10 +841,10 @@ public final class MainActivity extends Activity {
     }
 
     private void check(String name, boolean found) {
-        TextView row = Ui.text(this, (found ? "✓ " : "✗ ") + name, 12,
-                found ? Ui.OK : Ui.DANGER, true, 0.02f);
-        row.setPadding(0, Ui.dp(this, 2), 0, Ui.dp(this, 2));
-        checks.addView(row, new LinearLayout.LayoutParams(0, -2, name.equals("default.xex") ? 2 : 1));
+        TextView chip = Ui.chip(this, name, found ? Ui.OK : Ui.DANGER);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);
+        params.rightMargin = Ui.dp(this, 8);
+        checks.addView(chip, params);
     }
 
     private File gameRoot() {

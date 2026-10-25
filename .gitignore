@@ -24,3 +24,7 @@ __pycache__/
 *.pyc
 .idea/
 .vscode/
+
+# Mídia do launcher (gerada da cópia do dono por tools/make_launcher_media.sh)
+app/src/main/assets/launcher/*.mp4
+app/src/main/assets/launcher/*.m4a

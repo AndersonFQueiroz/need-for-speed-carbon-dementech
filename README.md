@@ -133,6 +133,20 @@ tools/fetch_engine.sh          # extrai o motor do APK local e confere o sha256
 Detalhes, incluindo o build **dentro do celular** (Termux) e as limitações de
 ARM64, em [`doc/04-build-termux.md`](doc/04-build-termux.md).
 
+### Mídia do launcher (vídeo de fundo e trilha)
+
+O launcher usa um trecho do vídeo de atração do próprio jogo como fundo e a
+trilha desse vídeo como música. **Nada disso é versionado** (é conteúdo da EA):
+gere da sua cópia com
+
+```bash
+tools/make_launcher_media.sh "/caminho/para/NFSCARBON"
+```
+
+O script escreve `app/src/main/assets/launcher/bg.mp4` (~3 MB, 24 s, sem áudio)
+e `theme.m4a` (~1 MB). Sem esses arquivos o launcher compila e roda, só fica
+com o fundo em gradiente e sem som.
+
 ## Estrutura
 
 ```
