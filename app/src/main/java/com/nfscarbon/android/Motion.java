@@ -89,8 +89,8 @@ final class Motion {
     static void kenBurns(View view) {
         view.setScaleX(1f);
         view.setScaleY(1f);
-        ObjectAnimator animator = ObjectAnimator.ofFloat(view, View.SCALE_X, 1f, 1.07f);
-        ObjectAnimator animatorY = ObjectAnimator.ofFloat(view, View.SCALE_Y, 1f, 1.07f);
+        ObjectAnimator animator = ObjectAnimator.ofFloat(view, View.SCALE_X, 1f, 1.03f);
+        ObjectAnimator animatorY = ObjectAnimator.ofFloat(view, View.SCALE_Y, 1f, 1.03f);
         animator.setDuration(24000);
         animatorY.setDuration(24000);
         animator.setRepeatMode(ValueAnimator.REVERSE);

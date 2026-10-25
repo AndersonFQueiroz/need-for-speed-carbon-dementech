@@ -21,7 +21,8 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
-import android.widget.VideoView;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -64,7 +65,8 @@ public final class MainActivity extends Activity {
     private TextView accessButton;
     private TextView tabGame, tabDiagnostics, tabCredits;
     private LinearLayout tabContent;
-    private VideoView video;
+    private SurfaceView videoSurface;
+    private MediaPlayer videoPlayer;
     private MediaPlayer music;
     private boolean musicOn;
     private FrameLayout panelHost;
@@ -74,6 +76,10 @@ public final class MainActivity extends Activity {
         super.onCreate(state);
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN);
+        if (Build.VERSION.SDK_INT >= 28) {
+            getWindow().getAttributes().layoutInDisplayCutoutMode =
+                    android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        }
         if (state != null) playAfterProbe = state.getBoolean("play_after_probe");
         setContentView(buildScreen());
         // Importa um save corrigido (saveio/in) e exporta o atual (saveio/out).
@@ -90,9 +96,16 @@ public final class MainActivity extends Activity {
                 new int[]{0xFF0B0D12, 0xFF151922, 0xFF05060A}));
         root.addView(fallback, new FrameLayout.LayoutParams(-1, -1));
 
-        video = new VideoView(this);
-        video.setAlpha(0f);
-        root.addView(video, new FrameLayout.LayoutParams(-1, -1));
+        videoSurface = new SurfaceView(this);
+        videoSurface.setAlpha(0f);
+        root.addView(videoSurface, new FrameLayout.LayoutParams(-1, -1));
+        videoSurface.getHolder().addCallback(new SurfaceHolder.Callback() {
+            @Override public void surfaceCreated(SurfaceHolder holder) { startBackdrop(holder); }
+            @Override public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {}
+            @Override public void surfaceDestroyed(SurfaceHolder holder) {
+                if (videoPlayer != null) { videoPlayer.release(); videoPlayer = null; }
+            }
+        });
 
         View scrim = new View(this);
         scrim.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
@@ -105,19 +118,29 @@ public final class MainActivity extends Activity {
         root.addView(leftScrim, new FrameLayout.LayoutParams(-1, -1));
     }
 
-    private void startBackdrop() {
+    /**
+     * O vídeo preenche a tela inteira recortando (SCALE_TO_FIT_WITH_CROPPING): sem
+     * tarjas laterais e sem esticar. É o mesmo enquadramento de fundo de menu.
+     */
+    private void startBackdrop(SurfaceHolder holder) {
         File clip = assetToCache("launcher/bg.mp4", "backdrop.mp4");
         if (clip == null) return;
-        video.setVideoPath(clip.getAbsolutePath());
-        video.setOnPreparedListener(player -> {
-            player.setLooping(true);
-            player.setVolume(0f, 0f);
-            video.setAlpha(0f);
-            video.animate().alpha(1f).setDuration(900).start();
-            video.start();
-            Motion.kenBurns(video);
-        });
-        video.setOnErrorListener((player, what, extra) -> true);
+        try {
+            videoPlayer = new MediaPlayer();
+            videoPlayer.setDataSource(clip.getAbsolutePath());
+            videoPlayer.setSurface(holder.getSurface());
+            videoPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
+            videoPlayer.setLooping(true);
+            videoPlayer.setVolume(0f, 0f);
+            videoPlayer.setOnPreparedListener(player -> {
+                videoSurface.animate().alpha(1f).setDuration(900).start();
+                player.start();
+                Motion.kenBurns(videoSurface);
+            });
+            videoPlayer.prepareAsync();
+        } catch (IOException error) {
+            videoPlayer = null;
+        }
     }
 
     /** Trilha do jogo tocando baixinho, com botão de mudo no cabeçalho. */
@@ -194,7 +217,6 @@ public final class MainActivity extends Activity {
         root.addView(panelHost, panelParams);
         panelHost.setVisibility(View.GONE);
 
-        startBackdrop();
         startMusic();
 
         Motion.enter(content, 0);
@@ -260,14 +282,14 @@ public final class MainActivity extends Activity {
         hero.addView(eyebrow, Ui.matchWrap());
         Motion.enter(eyebrow, 120);
 
-        TextView upper = Ui.text(this, "NEED FOR SPEED", 19, Ui.CHROME_DIM, true, 0.40f);
+        TextView upper = Ui.text(this, "NEED FOR SPEED", 15, Ui.CHROME_DIM, true, 0.40f);
         upper.setIncludeFontPadding(false);
         LinearLayout.LayoutParams upperParams = new LinearLayout.LayoutParams(-2, -2);
-        upperParams.topMargin = Ui.dp(this, 10);
+        upperParams.topMargin = Ui.dp(this, 6);
         hero.addView(upper, upperParams);
         Motion.enter(upper, 180);
 
-        TextView title = Ui.display(this, "CARBON", 74, Ui.CHROME);
+        TextView title = Ui.display(this, "CARBON", 54, Ui.CHROME);
         title.setLetterSpacing(0.02f);
         hero.addView(title, Ui.matchWrap());
         Motion.enter(title, 230);
@@ -277,43 +299,43 @@ public final class MainActivity extends Activity {
                 new int[]{Ui.ACCENT, 0x00FF3B4E});
         rule.setBackground(ruleBg);
         LinearLayout.LayoutParams ruleParams = new LinearLayout.LayoutParams(Ui.dp(this, 120), Ui.dp(this, 3));
-        ruleParams.topMargin = Ui.dp(this, 4);
-        ruleParams.bottomMargin = Ui.dp(this, 12);
+        ruleParams.topMargin = Ui.dp(this, 2);
+        ruleParams.bottomMargin = Ui.dp(this, 8);
         hero.addView(rule, ruleParams);
         Motion.enter(rule, 270);
 
-        status = Ui.label(this, "Verificando arquivos…", 13, Ui.CHROME_DIM);
+        status = Ui.label(this, "Verificando arquivos…", 12, Ui.CHROME_DIM);
         hero.addView(status, Ui.matchWrap());
 
         checks = new LinearLayout(this);
         checks.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams checksParams = new LinearLayout.LayoutParams(-1, -2);
-        checksParams.topMargin = Ui.dp(this, 12);
+        checksParams.topMargin = Ui.dp(this, 10);
         hero.addView(checks, checksParams);
 
         LinearLayout actions = new LinearLayout(this);
         actions.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(-1, -2);
-        actionsParams.topMargin = Ui.dp(this, 20);
+        actionsParams.topMargin = Ui.dp(this, 14);
         hero.addView(actions, actionsParams);
 
         play = Ui.primaryButton(this, "JOGAR  ▶", ignored -> play());
-        actions.addView(play, new LinearLayout.LayoutParams(Ui.dp(this, 260), Ui.dp(this, 62)));
+        actions.addView(play, new LinearLayout.LayoutParams(Ui.dp(this, 250), Ui.dp(this, 56)));
 
         importButton = Ui.ghostButton(this, "Importar minha cópia", ignored -> importGame());
-        LinearLayout.LayoutParams importParams = new LinearLayout.LayoutParams(Ui.dp(this, 210), Ui.dp(this, 52));
-        importParams.leftMargin = Ui.dp(this, 12);
+        LinearLayout.LayoutParams importParams = new LinearLayout.LayoutParams(Ui.dp(this, 200), Ui.dp(this, 48));
+        importParams.leftMargin = Ui.dp(this, 10);
         actions.addView(importButton, importParams);
 
         accessButton = Ui.ghostButton(this, "Permitir acesso", ignored -> permission());
-        LinearLayout.LayoutParams accessParams = new LinearLayout.LayoutParams(Ui.dp(this, 160), Ui.dp(this, 52));
+        LinearLayout.LayoutParams accessParams = new LinearLayout.LayoutParams(Ui.dp(this, 150), Ui.dp(this, 48));
         accessParams.leftMargin = Ui.dp(this, 10);
         actions.addView(accessButton, accessParams);
         accessButton.setVisibility(View.GONE);
 
         TextView note = Ui.label(this, "Sua cópia em Armazenamento interno/Jogos/NFSCARBON", 10,
                 Ui.CHROME_DIM);
-        note.setPadding(0, Ui.dp(this, 12), 0, 0);
+        note.setPadding(0, Ui.dp(this, 8), 0, 0);
         hero.addView(note, Ui.matchWrap());
 
         Motion.enter(status, 300);
@@ -638,7 +660,7 @@ public final class MainActivity extends Activity {
 
     @Override public void onResume() {
         super.onResume();
-        if (video != null && video.canSeekForward()) video.start();
+        if (videoPlayer != null) videoPlayer.start();
         if (music != null && musicOn) music.start();
         launcherResumed = true;
         SaveIO.sync(this);
@@ -653,14 +675,14 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onPause() {
-        if (video != null) video.pause();
+        if (videoPlayer != null) videoPlayer.pause();
         if (music != null) music.pause();
         launcherResumed = false;
         super.onPause();
     }
 
     @Override protected void onDestroy() {
-        if (video != null) { video.stopPlayback(); video = null; }
+        if (videoPlayer != null) { videoPlayer.release(); videoPlayer = null; }
         if (music != null) { music.release(); music = null; }
         super.onDestroy();
     }
