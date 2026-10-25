@@ -186,8 +186,11 @@ public final class MainActivity extends Activity {
         content.addView(buildHero(), Ui.matchWrap());
 
         panelHost = new FrameLayout(this);
-        FrameLayout.LayoutParams panelParams = new FrameLayout.LayoutParams(Ui.dp(this, 470), -1,
+        FrameLayout.LayoutParams panelParams = new FrameLayout.LayoutParams(Ui.dp(this, 440), -1,
                 Gravity.END);
+        panelParams.topMargin = Ui.dp(this, 84);
+        panelParams.bottomMargin = Ui.dp(this, 18);
+        panelParams.rightMargin = Ui.dp(this, 18);
         root.addView(panelHost, panelParams);
         panelHost.setVisibility(View.GONE);
 
@@ -339,7 +342,7 @@ public final class MainActivity extends Activity {
     }
 
     private void buildPanel() {
-        LinearLayout panel = Ui.glass(this, 0);
+        LinearLayout panel = Ui.glass(this, 20);
         panel.setPadding(Ui.dp(this, 20), Ui.dp(this, 16), Ui.dp(this, 20), Ui.dp(this, 14));
         panelHost.addView(panel, new FrameLayout.LayoutParams(-1, -1));
 
